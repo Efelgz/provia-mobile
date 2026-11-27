@@ -127,29 +127,31 @@ class DashboardScreen extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Flexible(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: ProviaTheme.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          activeProject.company,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: ProviaTheme.primary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: ProviaTheme.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            activeProject.company,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: ProviaTheme.primary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Spacer(),
                     const Icon(
                       LucideIcons.clock,
                       size: 13,
