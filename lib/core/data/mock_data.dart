@@ -56,8 +56,10 @@ class ProviaMockData {
     ),
   ];
 
-  /// Uygulamayı kullanan (demo) öğrencinin adı.
-  static const String currentUserName = 'Deniz Aydın';
+  // --- Oturum açan kullanıcı (giriş yapılınca main.dart tarafından ayarlanır) ---
+  static String currentUserName = 'Deniz Aydın';
+  static String currentUserUniversity = 'Marmara Üni. • Yazılım Müh.';
+  static int currentUserCompletedProjects = 3;
 
   static ProviaProject projectById(String id) =>
       projects.firstWhere((p) => p.id == id);
@@ -72,7 +74,12 @@ class ProviaMockData {
 
   /// Proje bazlı takım görevleri. Görev durumları oturum boyunca
   /// burada tutulur (kalıcı kayıt Faz 2'de shared_preferences ile gelecek).
-  static final Map<String, List<ProviaTask>> projectTasks = {
+  static Map<String, List<ProviaTask>> projectTasks = _buildInitialTasks();
+
+  /// Görevleri başlangıç durumuna döndürür (çıkış / sıfırlama sonrası).
+  static void resetTasks() => projectTasks = _buildInitialTasks();
+
+  static Map<String, List<ProviaTask>> _buildInitialTasks() => {
     'p1': [
       ProviaTask(
         id: 'p1-t1',
@@ -243,11 +250,11 @@ class ProviaMockData {
       if (!isCurrentUser(u)) return u;
       return LeaderboardUser(
         rank: u.rank,
-        name: u.name,
-        university: u.university,
+        name: '$currentUserName (Sen)',
+        university: currentUserUniversity,
         xp: userXp,
         level: (userXp ~/ 400) + 1,
-        completedProjects: u.completedProjects,
+        completedProjects: currentUserCompletedProjects,
       );
     }).toList()..sort((a, b) => b.xp.compareTo(a.xp));
 
