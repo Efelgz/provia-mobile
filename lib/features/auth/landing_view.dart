@@ -139,21 +139,22 @@ class _Brand extends StatelessWidget {
           height: 30,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: ProviaTheme.primary,
+            color: ProviaTheme.textPrimary,
             borderRadius: BorderRadius.circular(8),
           ),
-          child: const Icon(
-            LucideIcons.code2,
-            size: 16,
-            color: ProviaTheme.onPrimary,
+          child: const Text(
+            'P',
+            style: TextStyle(
+              color: ProviaTheme.onPrimary,
+              fontWeight: FontWeight.w700,
+              fontSize: 16,
+              height: 1,
+            ),
           ),
         ),
         if (showName) ...[
           const SizedBox(width: 10),
-          Text(
-            'PROVIA',
-            style: ProviaTheme.heading(size: 16, weight: FontWeight.w800),
-          ),
+          Text('PROVIA', style: ProviaTheme.heading(size: 15)),
         ],
       ],
     );
@@ -254,7 +255,7 @@ class _Hero extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final headlineSize = width >= 900 ? 64.0 : (width >= 600 ? 48.0 : 36.0);
+    final headlineSize = width >= 900 ? 56.0 : (width >= 600 ? 44.0 : 34.0);
     final projects = ProviaMockData.projects;
     final sponsorCount = projects
         .where((p) => p.isCompanySponsored)
@@ -268,60 +269,23 @@ class _Hero extends StatelessWidget {
 
     return Stack(
       children: [
-        // Çok hafif turuncu ışıma (minimal).
-        Positioned(
-          top: -180,
-          right: -120,
-          child: IgnorePointer(
-            child: Container(
-              width: 620,
-              height: 620,
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  colors: [
-                    ProviaTheme.primary.withValues(alpha: 0.10),
-                    ProviaTheme.primary.withValues(alpha: 0),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
         _Section(
           topPadding: width >= 600 ? 96 : 48,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: ProviaTheme.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: ProviaTheme.borderHighlight),
+                  borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
+                  border: Border.all(color: ProviaTheme.borderDark),
                 ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.circle,
-                      size: 7,
-                      color: ProviaTheme.primary,
-                    ),
-                    const SizedBox(width: 8),
-                    Flexible(
-                      child: Text(
-                        '1. ve 2. sınıf yazılım öğrencileri için deneyim platformu',
-                        style: TextStyle(
-                          color: ProviaTheme.primary.withValues(alpha: 0.95),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  '1. ve 2. sınıf yazılım öğrencileri için',
+                  style: ProviaTheme.mono(
+                    size: 11,
+                    color: ProviaTheme.textMuted,
+                  ),
                 ),
               ),
               const SizedBox(height: 22),
@@ -331,7 +295,7 @@ class _Hero extends StatelessWidget {
                   'İlk stajından önce deneyim kazan.',
                   style: TextStyle(
                     fontSize: headlineSize,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     height: 1.05,
                     letterSpacing: -headlineSize * 0.03,
                     color: ProviaTheme.textPrimary,
@@ -389,13 +353,11 @@ class _Hero extends StatelessWidget {
                     style: OutlinedButton.styleFrom(
                       minimumSize: const Size(0, 48),
                       padding: const EdgeInsets.symmetric(horizontal: 22),
-                      foregroundColor: ProviaTheme.accent,
-                      backgroundColor: ProviaTheme.accent.withValues(
+                      foregroundColor: ProviaTheme.textPrimary,
+                      backgroundColor: ProviaTheme.bgDark.withValues(
                         alpha: 0.06,
                       ),
-                      side: BorderSide(
-                        color: ProviaTheme.accent.withValues(alpha: 0.45),
-                      ),
+                      side: BorderSide(color: ProviaTheme.borderDark),
                       textStyle: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -493,10 +455,7 @@ class _HowItWorks extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          'Nasıl Çalışır?',
-          style: ProviaTheme.heading(size: 28, weight: FontWeight.w800),
-        ),
+        Text('Nasıl Çalışır?', style: ProviaTheme.heading(size: 24)),
         const SizedBox(height: 8),
         const Text(
           'Bir yazılım şirketinde çalışma deneyimini 4 net adımda simüle ediyoruz.',
@@ -518,7 +477,7 @@ class _HowItWorks extends StatelessWidget {
                       children: [
                         IconBox(
                           icon: _steps[i].$1,
-                          color: ProviaTheme.primary,
+                          color: ProviaTheme.textPrimary,
                           size: 40,
                         ),
                         const Spacer(),
@@ -572,7 +531,7 @@ class _FeaturedProjects extends StatelessWidget {
       children: [
         Text(
           'Öne Çıkan Gerçek Dünya Projeleri',
-          style: ProviaTheme.heading(size: 28, weight: FontWeight.w800),
+          style: ProviaTheme.heading(size: 24),
         ),
         const SizedBox(height: 8),
         Wrap(
@@ -699,7 +658,7 @@ class _LandingProjectCard extends StatelessWidget {
               const Text(
                 'İncele',
                 style: TextStyle(
-                  color: ProviaTheme.primary,
+                  color: ProviaTheme.textPrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -708,7 +667,7 @@ class _LandingProjectCard extends StatelessWidget {
               const Icon(
                 LucideIcons.arrowRight,
                 size: 14,
-                color: ProviaTheme.primary,
+                color: ProviaTheme.textPrimary,
               ),
             ],
           ),
@@ -737,7 +696,7 @@ class _CompanyCta extends StatelessWidget {
               child: Text(
                 'Şirket Partnerliği',
                 style: TextStyle(
-                  color: ProviaTheme.primary,
+                  color: ProviaTheme.textPrimary,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                 ),
@@ -748,7 +707,7 @@ class _CompanyCta extends StatelessWidget {
         const SizedBox(height: 14),
         Text(
           "CV'ye değil, gerçek koda bakarak yetenek keşfedin.",
-          style: ProviaTheme.heading(size: 30, weight: FontWeight.w800),
+          style: ProviaTheme.heading(size: 26),
         ),
         const SizedBox(height: 14),
         const Text(

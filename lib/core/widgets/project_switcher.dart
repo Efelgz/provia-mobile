@@ -3,8 +3,7 @@ import '../theme/app_theme.dart';
 import '../../models/provia_models.dart';
 import 'provia_components.dart';
 
-/// Katılınan projeler arasında geçiş yapmak için yatay seçim çubuğu.
-/// Panel ve Alanım ekranları ortak kullanır.
+/// Katılınan projeler arasında geçiş için kompakt, nötr seçici.
 class ProjectSwitcher extends StatelessWidget {
   final List<ProviaProject> projects;
   final String activeProjectId;
@@ -20,31 +19,29 @@ class ProjectSwitcher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: minTapHeight(context, 36, 44),
+      height: minTapHeight(context, 32, 44),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: projects.length,
-        separatorBuilder: (_, _) => const SizedBox(width: 8),
+        separatorBuilder: (_, _) => const SizedBox(width: 6),
         itemBuilder: (context, index) {
           final project = projects[index];
           final selected = project.id == activeProjectId;
           return Material(
-            color: selected
-                ? ProviaTheme.primary.withValues(alpha: 0.2)
-                : ProviaTheme.surfaceDark,
+            color: selected ? ProviaTheme.surfaceElevated : Colors.transparent,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
               side: BorderSide(
                 color: selected
-                    ? ProviaTheme.primary.withValues(alpha: 0.6)
+                    ? ProviaTheme.borderStrong
                     : ProviaTheme.borderDark,
               ),
             ),
             child: InkWell(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
               onTap: () => onSelect(project.id),
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 220),
+                constraints: const BoxConstraints(maxWidth: 240),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Center(
@@ -54,10 +51,12 @@ class ProjectSwitcher extends StatelessWidget {
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: selected
+                            ? FontWeight.w500
+                            : FontWeight.w400,
                         color: selected
                             ? ProviaTheme.textPrimary
-                            : ProviaTheme.textMuted,
+                            : ProviaTheme.textSubtle,
                       ),
                     ),
                   ),
