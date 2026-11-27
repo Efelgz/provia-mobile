@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/data/mock_data.dart';
+import '../../core/services/provia_session.dart';
 import '../../core/widgets/provia_components.dart';
 import '../../models/provia_models.dart';
 import 'profile_data.dart';
@@ -86,13 +87,31 @@ class ProfileView extends StatelessWidget {
             icon: const Icon(LucideIcons.share2, size: 13),
             label: const Text('Portfolyoyu Paylaş'),
           )
-        : ElevatedButton.icon(
-            onPressed: () => _showMessage(
-              context,
-              '${profile.name} adlı öğrenciye takım daveti gönderildi (demo).',
+        // Davet durumu Takımlar ekranıyla ortak; tekrar dokununca iptal olur.
+        : ValueListenableBuilder<Set<String>>(
+            valueListenable: ProviaSession.invitedStudents,
+            builder: (context, _, _) => ToggleActionButton(
+              primary: true,
+              icon: LucideIcons.userPlus,
+              active: ProviaSession.isInvited(profile.name),
+              label: 'Takımına Davet Et',
+              activeLabel: 'Davet gönderildi',
+              undoneLabel: 'Davet iptal edildi',
+              onActivate: () {
+                ProviaSession.toggleInvite(profile.name);
+                _showMessage(
+                  context,
+                  '${profile.name} adlı öğrenciye takım daveti gönderildi (demo).',
+                );
+              },
+              onUndo: () {
+                ProviaSession.toggleInvite(profile.name);
+                _showMessage(
+                  context,
+                  '${profile.name} için davet iptal edildi.',
+                );
+              },
             ),
-            icon: const Icon(LucideIcons.userPlus, size: 13),
-            label: const Text('Takımına Davet Et'),
           );
 
     return ProviaPageView(

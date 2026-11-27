@@ -69,6 +69,9 @@ class ProviaProgress {
   /// XP'si verilmiş etkinlikler (kayıt iptal edip yeniden olunca tekrar XP yok).
   final Set<String> awardedEventIds;
 
+  /// Takım daveti gönderilen öğrenciler.
+  final Set<String> invitedStudents;
+
   const ProviaProgress({
     required this.xp,
     required this.joinedProjectIds,
@@ -79,6 +82,7 @@ class ProviaProgress {
     this.createdTeams = const [],
     this.registeredEventIds = const {},
     this.awardedEventIds = const {},
+    this.invitedStudents = const {},
   });
 
   /// Demo hesabı hazır verilerle başlar; yeni hesaplar sıfırdan başlar.
@@ -111,6 +115,7 @@ class ProviaProgress {
     'createdTeams': [for (final t in createdTeams) t.toJson()],
     'registeredEventIds': registeredEventIds.toList(),
     'awardedEventIds': awardedEventIds.toList(),
+    'invitedStudents': invitedStudents.toList(),
   };
 
   factory ProviaProgress.fromJson(Map<String, dynamic> json) {
@@ -143,6 +148,9 @@ class ProviaProgress {
       ),
       awardedEventIds: Set<String>.from(
         json['awardedEventIds'] as List? ?? const [],
+      ),
+      invitedStudents: Set<String>.from(
+        json['invitedStudents'] as List? ?? const [],
       ),
     );
   }

@@ -99,10 +99,10 @@ class _MarketplaceScreenState extends State<MarketplaceScreen> {
       ..showSnackBar(
         SnackBar(
           content: Text(
-            '"${project.title}" projesine katıldın. +50 XP, panelde aktif.',
+            '"${project.title}" projesine katıldın. +50 XP, ana sayfada aktif.',
           ),
           action: SnackBarAction(
-            label: 'Panele Git',
+            label: 'Ana Sayfaya Git',
             onPressed: widget.onGoToDashboard,
           ),
         ),

@@ -24,6 +24,27 @@ class LandingView extends StatefulWidget {
 }
 
 class _LandingViewState extends State<LandingView> {
+  final _scroll = ScrollController();
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _scrollToTop() {
+    if (!_scroll.hasClients) return;
+    if (MediaQuery.of(context).disableAnimations) {
+      _scroll.jumpTo(0);
+    } else {
+      _scroll.animateTo(
+        0,
+        duration: const Duration(milliseconds: 400),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
   final _howKey = GlobalKey();
   final _projectsKey = GlobalKey();
   final _companyKey = GlobalKey();
@@ -60,11 +81,13 @@ class _LandingViewState extends State<LandingView> {
 
     return Scaffold(
       body: SingleChildScrollView(
+        controller: _scroll,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _TopNav(
               wide: wide,
+              onHome: _scrollToTop,
               onHow: () => _scrollTo(_howKey),
               onProjects: () => _scrollTo(_projectsKey),
               onCompany: () => _scrollTo(_companyKey),
@@ -140,6 +163,7 @@ class _Brand extends StatelessWidget {
 
 class _TopNav extends StatelessWidget {
   final bool wide;
+  final VoidCallback onHome;
   final VoidCallback onHow;
   final VoidCallback onProjects;
   final VoidCallback onCompany;
@@ -148,6 +172,7 @@ class _TopNav extends StatelessWidget {
 
   const _TopNav({
     required this.wide,
+    required this.onHome,
     required this.onHow,
     required this.onProjects,
     required this.onCompany,
@@ -183,7 +208,12 @@ class _TopNav extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  _Brand(showName: MediaQuery.sizeOf(context).width >= 420),
+                  ProviaHomeLink(
+                    onTap: onHome,
+                    child: _Brand(
+                      showName: MediaQuery.sizeOf(context).width >= 420,
+                    ),
+                  ),
                   const Spacer(),
                   if (wide) ...[
                     link('Nasıl Çalışır', onHow),

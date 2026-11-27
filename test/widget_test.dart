@@ -70,7 +70,13 @@ void main() {
     expect(find.text('İlk stajından önce deneyim kazan.'), findsOneWidget);
     await demoLogin(tester);
 
-    for (final label in ['Panel', 'Keşfet', 'Alanım', 'Sıralama', 'Profil']) {
+    for (final label in [
+      'Ana Sayfa',
+      'Keşfet',
+      'Alanım',
+      'Sıralama',
+      'Profil',
+    ]) {
       expect(find.text(label), findsOneWidget);
     }
     expect(find.text('Tekrar hoş geldin, Deniz'), findsOneWidget);
@@ -96,7 +102,7 @@ void main() {
       expect(find.text('Katıldın'), findsWidgets);
       await waitSnackBar(tester);
 
-      await tester.tap(find.text('Panel'));
+      await tester.tap(find.text('Ana Sayfa'));
       await tester.pumpAndSettle();
       expect(
         find.text('Çalışma Alanında Aç', skipOffstage: false),
@@ -287,7 +293,7 @@ void main() {
     expect(find.textContaining('MVP simülasyonu'), findsWidgets);
     await waitSnackBar(tester);
 
-    await tester.tap(find.text('Genel Bakış'));
+    await tester.tap(find.text('Ana Sayfa'));
     await tester.pumpAndSettle();
     expect(find.text('88/100'), findsOneWidget);
   });
@@ -437,5 +443,79 @@ void main() {
     expect(find.byType(Dialog), findsNothing);
     expect(find.text('Sipariş Takip Ekranı'), findsOneWidget);
     expect(find.text('Aranan: Frontend  ·  Backend'), findsOneWidget);
+  });
+
+  for (final width in [390.0, 1440.0]) {
+    testWidgets('Logoya basınca Ana Sayfa açılır ($width px)', (tester) async {
+      tester.view.physicalSize = Size(width, 1000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await startApp(tester);
+      await demoLogin(tester);
+
+      await tester.tap(
+        find.text(width >= 900 ? 'Projeleri Keşfet' : 'Keşfet').first,
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Tekrar hoş geldin, Deniz'), findsNothing);
+
+      await tester.tap(find.byTooltip('Ana Sayfa').first);
+      await tester.pumpAndSettle();
+      expect(find.text('Tekrar hoş geldin, Deniz'), findsOneWidget);
+    });
+  }
+
+  testWidgets('Davet ve başvuru geri alınabilir (profil + takımlar)', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await startApp(tester);
+    await demoLogin(tester);
+
+    // Profil: davet et -> gönderildi -> iptal -> tekrar "Takımına Davet Et"
+    await tester.tap(find.text('Liderlik Tablosu').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Zeynep Arslan'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Takımına Davet Et'));
+    await tester.pumpAndSettle();
+    expect(find.text('Davet gönderildi'), findsOneWidget);
+    await waitSnackBar(tester);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    // Takımlar: aynı kişi "Davet gönderildi" görünür (ortak durum)
+    await tester.tap(find.text('Takımlar').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Takım Arkadaşı Bul'));
+    await tester.pumpAndSettle();
+    expect(find.text('Davet gönderildi'), findsOneWidget);
+
+    // Davet iptal: kısa süre "Davet iptal edildi", sonra "Davet Et"
+    await tester.tap(find.text('Davet gönderildi'));
+    await tester.pump();
+    expect(find.text('Davet iptal edildi'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(find.text('Davet iptal edildi'), findsNothing);
+    expect(find.text('Davet gönderildi'), findsNothing);
+    expect(find.text('Davet Et'), findsNWidgets(6));
+
+    // Başvuru: başvur -> başvuruldu -> geri çek -> başvur
+    await tester.tap(find.text('Açık Takımlar'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Başvur').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Başvuruldu'), findsOneWidget);
+    await tester.tap(find.text('Başvuruldu'));
+    await tester.pump();
+    expect(find.text('Başvuru geri çekildi'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+    expect(find.text('Başvuruldu'), findsNothing);
+    expect(find.text('Başvur'), findsNWidgets(5));
+    await waitSnackBar(tester);
   });
 }

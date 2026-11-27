@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/data/mock_data.dart';
+import '../../core/services/provia_session.dart';
 import '../../core/widgets/provia_components.dart';
 import '../../models/provia_models.dart';
 
@@ -118,6 +119,7 @@ class TeamsScreen extends StatefulWidget {
   final Set<String> appliedTeamIds;
   final List<CreatedTeam> createdTeams;
   final ValueChanged<String> onApply;
+  final ValueChanged<String> onWithdraw;
   final ValueChanged<CreatedTeam> onCreateTeam;
 
   const TeamsScreen({
@@ -126,6 +128,7 @@ class TeamsScreen extends StatefulWidget {
     required this.appliedTeamIds,
     required this.createdTeams,
     required this.onApply,
+    required this.onWithdraw,
     required this.onCreateTeam,
   });
 
@@ -152,6 +155,22 @@ class _TeamsScreenState extends State<TeamsScreen> {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  void _withdraw(_OpenTeam team) {
+    if (!_applied.contains(team.id)) return;
+    setState(() => _applied.remove(team.id));
+    widget.onWithdraw(team.id);
+    _message('"${team.name}" takımına başvurun geri çekildi.');
+  }
+
+  void _toggleInvite(_Teammate p) {
+    final invited = ProviaSession.toggleInvite(p.name);
+    _message(
+      invited
+          ? '${p.name} adlı öğrenciye takım daveti gönderildi (demo).'
+          : '${p.name} için davet iptal edildi.',
+    );
   }
 
   void _apply(_OpenTeam team) {
@@ -234,6 +253,7 @@ class _TeamsScreenState extends State<TeamsScreen> {
                   team: t,
                   applied: _applied.contains(t.id),
                   onApply: () => _apply(t),
+                  onWithdraw: () => _withdraw(t),
                 ),
             ],
           ),
@@ -241,13 +261,12 @@ class _TeamsScreenState extends State<TeamsScreen> {
             created: _created,
             applied: _openTeams.where((t) => _applied.contains(t.id)).toList(),
             onCreate: _createTeam,
+            onWithdraw: _withdraw,
           ),
           _Tab.people => _People(
             roleFilter: _roleFilter,
             onFilter: (v) => setState(() => _roleFilter = v),
-            onInvite: (p) => _message(
-              '${p.name} adlı öğrenciye takım daveti gönderildi (demo).',
-            ),
+            onToggleInvite: _toggleInvite,
           ),
         },
       ],
@@ -300,11 +319,13 @@ class _OpenTeamRow extends StatelessWidget {
   final _OpenTeam team;
   final bool applied;
   final VoidCallback onApply;
+  final VoidCallback onWithdraw;
 
   const _OpenTeamRow({
     required this.team,
     required this.applied,
     required this.onApply,
+    required this.onWithdraw,
   });
 
   @override
@@ -336,16 +357,15 @@ class _OpenTeamRow extends StatelessWidget {
           ),
         ],
       ),
-      action: applied
-          ? OutlinedButton.icon(
-              onPressed: null,
-              style: OutlinedButton.styleFrom(
-                disabledForegroundColor: ProviaTheme.accent,
-              ),
-              icon: const Icon(LucideIcons.check, size: 13),
-              label: const Text('Başvuruldu'),
-            )
-          : OutlinedButton(onPressed: onApply, child: const Text('Başvur')),
+      // Başvuruldu'ya tekrar dokununca başvuru geri çekilir.
+      action: ToggleActionButton(
+        active: applied,
+        label: 'Başvur',
+        activeLabel: 'Başvuruldu',
+        undoneLabel: 'Başvuru geri çekildi',
+        onActivate: onApply,
+        onUndo: onWithdraw,
+      ),
     );
   }
 }
@@ -354,11 +374,13 @@ class _MyTeams extends StatelessWidget {
   final List<CreatedTeam> created;
   final List<_OpenTeam> applied;
   final VoidCallback onCreate;
+  final ValueChanged<_OpenTeam> onWithdraw;
 
   const _MyTeams({
     required this.created,
     required this.applied,
     required this.onCreate,
+    required this.onWithdraw,
   });
 
   @override
@@ -455,14 +477,28 @@ class _MyTeams extends StatelessWidget {
                 ),
               ],
             ),
-            action: const Row(
-              mainAxisSize: MainAxisSize.min,
+            action: Wrap(
+              spacing: 12,
+              runSpacing: 6,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                StatusDot(ProviaTheme.warning),
-                SizedBox(width: 8),
-                Text(
-                  'Başvuru değerlendiriliyor',
-                  style: TextStyle(color: ProviaTheme.textMuted, fontSize: 12),
+                const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    StatusDot(ProviaTheme.warning),
+                    SizedBox(width: 8),
+                    Text(
+                      'Başvuru değerlendiriliyor',
+                      style: TextStyle(
+                        color: ProviaTheme.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+                TextButton(
+                  onPressed: () => onWithdraw(t),
+                  child: const Text('Geri çek'),
                 ),
               ],
             ),
@@ -475,12 +511,12 @@ class _MyTeams extends StatelessWidget {
 class _People extends StatelessWidget {
   final String roleFilter;
   final ValueChanged<String> onFilter;
-  final ValueChanged<_Teammate> onInvite;
+  final ValueChanged<_Teammate> onToggleInvite;
 
   const _People({
     required this.roleFilter,
     required this.onFilter,
-    required this.onInvite,
+    required this.onToggleInvite,
   });
 
   @override
@@ -545,9 +581,17 @@ class _People extends StatelessWidget {
                       ),
                     ],
                   ),
-                  action: OutlinedButton(
-                    onPressed: () => onInvite(p),
-                    child: const Text('Davet Et'),
+                  // Davet durumu Profil ekranıyla ortak.
+                  action: ValueListenableBuilder<Set<String>>(
+                    valueListenable: ProviaSession.invitedStudents,
+                    builder: (context, _, _) => ToggleActionButton(
+                      active: ProviaSession.isInvited(p.name),
+                      label: 'Davet Et',
+                      activeLabel: 'Davet gönderildi',
+                      undoneLabel: 'Davet iptal edildi',
+                      onActivate: () => onToggleInvite(p),
+                      onUndo: () => onToggleInvite(p),
+                    ),
                   ),
                 ),
             ],

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -1043,6 +1044,110 @@ class ProviaSelect<T> extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Geri alınabilir aksiyon butonu (davet / başvuru)
+// ---------------------------------------------------------------------------
+
+/// Üç durumlu buton:
+/// 1) [label] (ör. "Davet Et") → dokununca [onActivate]
+/// 2) [activeLabel] ✓ (ör. "Davet gönderildi") → tekrar dokununca [onUndo]
+/// 3) kısa süre [undoneLabel] (ör. "Davet iptal edildi"), sonra 1'e döner.
+class ToggleActionButton extends StatefulWidget {
+  final bool active;
+  final String label;
+  final String activeLabel;
+  final String undoneLabel;
+  final VoidCallback onActivate;
+  final VoidCallback onUndo;
+  final bool primary;
+  final IconData? icon;
+
+  const ToggleActionButton({
+    super.key,
+    required this.active,
+    required this.label,
+    required this.activeLabel,
+    required this.undoneLabel,
+    required this.onActivate,
+    required this.onUndo,
+    this.primary = false,
+    this.icon,
+  });
+
+  @override
+  State<ToggleActionButton> createState() => _ToggleActionButtonState();
+}
+
+class _ToggleActionButtonState extends State<ToggleActionButton> {
+  static const _flashDuration = Duration(milliseconds: 1600);
+
+  Timer? _timer;
+  bool _showUndone = false;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _undo() {
+    widget.onUndo();
+    _timer?.cancel();
+    setState(() => _showUndone = true);
+    _timer = Timer(_flashDuration, () {
+      if (mounted) setState(() => _showUndone = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_showUndone && !widget.active) {
+      return OutlinedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.close, size: 13),
+        label: Text(widget.undoneLabel),
+      );
+    }
+    if (widget.active) {
+      return Tooltip(
+        message: 'Geri almak için tıkla',
+        child: OutlinedButton.icon(
+          onPressed: _undo,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: ProviaTheme.accent,
+            side: BorderSide(color: ProviaTheme.accent.withValues(alpha: 0.4)),
+          ),
+          icon: const Icon(Icons.check, size: 14),
+          label: Text(widget.activeLabel),
+        ),
+      );
+    }
+    final icon = widget.icon;
+    if (widget.primary) {
+      return icon == null
+          ? ElevatedButton(
+              onPressed: widget.onActivate,
+              child: Text(widget.label),
+            )
+          : ElevatedButton.icon(
+              onPressed: widget.onActivate,
+              icon: Icon(icon, size: 13),
+              label: Text(widget.label),
+            );
+    }
+    return icon == null
+        ? OutlinedButton(
+            onPressed: widget.onActivate,
+            child: Text(widget.label),
+          )
+        : OutlinedButton.icon(
+            onPressed: widget.onActivate,
+            icon: Icon(icon, size: 13),
+            label: Text(widget.label),
+          );
   }
 }
 

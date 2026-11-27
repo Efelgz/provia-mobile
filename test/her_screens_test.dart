@@ -24,9 +24,9 @@ void main() {
   }
 
   Future<void> openTab(WidgetTester tester, Size size, int index) async {
-    const mobile = ['Panel', 'Keşfet', 'Alanım', 'Sıralama', 'Profil'];
+    const mobile = ['Ana Sayfa', 'Keşfet', 'Alanım', 'Sıralama', 'Profil'];
     const desktop = [
-      'Genel Bakış',
+      'Ana Sayfa',
       'Projeleri Keşfet',
       'Proje Çalışma Alanı',
       'Liderlik Tablosu',

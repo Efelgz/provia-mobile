@@ -83,3 +83,30 @@ class ProviaLogo extends StatelessWidget {
     );
   }
 }
+
+/// Logoyu Ana Sayfa'ya dönen bir bağlantıya çevirir.
+class ProviaHomeLink extends StatelessWidget {
+  final Widget child;
+  final VoidCallback onTap;
+
+  const ProviaHomeLink({super.key, required this.child, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: 'Ana Sayfa',
+      child: Semantics(
+        button: true,
+        label: 'Ana Sayfaya dön',
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
+            child: child,
+          ),
+        ),
+      ),
+    );
+  }
+}

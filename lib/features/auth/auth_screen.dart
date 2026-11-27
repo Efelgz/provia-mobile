@@ -274,7 +274,9 @@ class _AuthScreenState extends State<AuthScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const _BrandHeader(),
+                      _BrandHeader(
+                        onHome: () => setState(() => _showLanding = true),
+                      ),
                       const SizedBox(height: 24),
                       ProviaCard(
                         padding: const EdgeInsets.all(20),
@@ -319,13 +321,18 @@ class _AuthScreenState extends State<AuthScreen> {
 }
 
 class _BrandHeader extends StatelessWidget {
-  const _BrandHeader();
+  final VoidCallback onHome;
+
+  const _BrandHeader({required this.onHome});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        const ProviaLogo(height: 44, showTagline: true),
+        ProviaHomeLink(
+          onTap: onHome,
+          child: const ProviaLogo(height: 44, showTagline: true),
+        ),
         const SizedBox(height: 24),
         Text(
           'Hesabına giriş yap',

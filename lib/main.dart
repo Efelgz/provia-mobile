@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'core/theme/app_theme.dart';
 import 'core/data/mock_data.dart';
 import 'core/services/provia_storage.dart';
+import 'core/services/provia_session.dart';
 import 'core/widgets/provia_components.dart';
 import 'core/widgets/provia_logo.dart';
 import 'models/provia_models.dart';
@@ -137,7 +138,7 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
       _joinedProjectIds.map(ProviaMockData.projectById).toList();
 
   final List<String> _titles = [
-    'PROVIA',
+    'Ana Sayfa',
     'Projeleri Keşfet',
     'Çalışma Alanı',
     'Liderlik Tablosu',
@@ -155,6 +156,13 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
     ProviaMockData.currentUserUniversity = account.university;
     ProviaMockData.currentUserCompletedProjects = account.isDemo ? 3 : 0;
     _applyProgress(ProviaStorage.loadProgress(account));
+    ProviaSession.invitedStudents.addListener(_save);
+  }
+
+  @override
+  void dispose() {
+    ProviaSession.invitedStudents.removeListener(_save);
+    super.dispose();
   }
 
   /// Kayıtlı ilerlemeyi ekrana uygular (açılışta ve sıfırlamada).
@@ -194,6 +202,7 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
     _awardedEventIds
       ..clear()
       ..addAll(progress.awardedEventIds);
+    ProviaSession.invitedStudents.value = {...progress.invitedStudents};
   }
 
   /// Her değişiklikten sonra ilerleme cihaza kaydedilir.
@@ -212,6 +221,7 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
       createdTeams: List.of(_createdTeams),
       registeredEventIds: Set.of(_registeredEventIds),
       awardedEventIds: Set.of(_awardedEventIds),
+      invitedStudents: Set.of(ProviaSession.invitedStudents.value),
     );
     unawaited(ProviaStorage.saveProgress(widget.account, progress));
   }
@@ -242,6 +252,9 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
   void _applyToTeam(String teamId) =>
       _update(() => _appliedTeamIds.add(teamId));
 
+  void _withdrawFromTeam(String teamId) =>
+      _update(() => _appliedTeamIds.remove(teamId));
+
   void _createTeam(CreatedTeam team) => _update(() => _createdTeams.add(team));
 
   /// Etkinlik kaydı aç/kapat. XP yalnızca o etkinliğe ilk kayıtta verilir.
@@ -260,6 +273,7 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
       appliedTeamIds: _appliedTeamIds,
       createdTeams: _createdTeams,
       onApply: _applyToTeam,
+      onWithdraw: _withdrawFromTeam,
       onCreateTeam: _createTeam,
     ),
     6 => EventsScreen(
@@ -395,20 +409,24 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
-        title: _currentIndex == 0
-            ? const ProviaLogo(height: 24)
-            : Row(
-                children: [
-                  const _LogoMark(size: 22),
-                  const SizedBox(width: 10),
-                  Flexible(
-                    child: Text(
-                      _titles[_currentIndex],
-                      overflow: TextOverflow.ellipsis,
+        title: ProviaHomeLink(
+          onTap: () => setState(() => _currentIndex = 0),
+          child: _currentIndex == 0
+              ? const ProviaLogo(height: 24)
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const _LogoMark(size: 22),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        _titles[_currentIndex],
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                  ),
-                ],
-              ),
+                  ],
+                ),
+        ),
         actions: [
           _XpPill(xp: _userXp, compact: true),
           PopupMenuButton<String>(
@@ -479,8 +497,8 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
               setState(() => _currentIndex = index),
           destinations: const [
             NavigationDestination(
-              icon: Icon(LucideIcons.layoutGrid),
-              label: 'Panel',
+              icon: Icon(LucideIcons.home),
+              label: 'Ana Sayfa',
             ),
             NavigationDestination(
               icon: Icon(LucideIcons.compass),
@@ -524,7 +542,7 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
 }
 
 const _desktopTitles = [
-  'Genel Bakış',
+  'Ana Sayfa',
   'Projeleri Keşfet',
   'Proje Çalışma Alanı',
   'Liderlik Tablosu',
@@ -544,7 +562,7 @@ class _NavEntry {
 }
 
 const _studentEntries = [
-  _NavEntry(0, LucideIcons.layoutGrid, 'Genel Bakış'),
+  _NavEntry(0, LucideIcons.home, 'Ana Sayfa'),
   _NavEntry(1, LucideIcons.compass, 'Projeleri Keşfet'),
   _NavEntry(2, LucideIcons.terminalSquare, 'Proje Çalışma Alanı'),
   _NavEntry(5, LucideIcons.users, 'Takımlar'),
@@ -776,7 +794,10 @@ class _Sidebar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  const ProviaLogo(height: 24),
+                  ProviaHomeLink(
+                    onTap: () => onSelect(0),
+                    child: const ProviaLogo(height: 24),
+                  ),
                   const Spacer(),
                   Text(
                     'v1.0',
