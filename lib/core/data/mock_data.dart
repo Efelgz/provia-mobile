@@ -303,6 +303,27 @@ class ProviaMockData {
   static int daysLeft(ProviaProject project) =>
       int.tryParse(project.deadline.split(' ').first) ?? 999;
 
+  static const _months = [
+    'Ocak',
+    'Şubat',
+    'Mart',
+    'Nisan',
+    'Mayıs',
+    'Haziran',
+    'Temmuz',
+    'Ağustos',
+    'Eylül',
+    'Ekim',
+    'Kasım',
+    'Aralık',
+  ];
+
+  /// Teslim tarihi metni: "9 Aralık 2026" (demo bugünü: 27 Kasım 2026).
+  static String deadlineLabel(ProviaProject project) {
+    final date = DateTime(2026, 11, 27).add(Duration(days: daysLeft(project)));
+    return '${date.day} ${_months[date.month - 1]} ${date.year}';
+  }
+
   static const List<LeaderboardUser> monthlyLeaderboard = [
     LeaderboardUser(
       rank: 1,

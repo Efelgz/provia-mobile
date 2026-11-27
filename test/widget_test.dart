@@ -36,6 +36,9 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// Keşfet kartındaki katıl butonu ("Katıl" veya eski "Projeye Katıl").
+  Finder joinButton() => find.textContaining(RegExp(r'^(Projeye )?Katıl$'));
+
   Future<void> tapVisible(WidgetTester tester, Finder finder) async {
     await tester.ensureVisible(finder);
     await tester.pumpAndSettle();
@@ -70,7 +73,7 @@ void main() {
     for (final label in ['Panel', 'Keşfet', 'Alanım', 'Sıralama', 'Profil']) {
       expect(find.text(label), findsOneWidget);
     }
-    expect(find.text('Hoş geldin, Deniz'), findsOneWidget);
+    expect(find.text('Tekrar hoş geldin, Deniz'), findsOneWidget);
     expect(find.text('1450 XP'), findsWidgets);
   });
 
@@ -88,14 +91,17 @@ void main() {
       expect(find.text('Katıldın'), findsOneWidget);
 
       // İkinci projeye katıl: +50 XP ve aktif proje olur.
-      await tapVisible(tester, find.text('Projeye Katıl').first);
+      await tapVisible(tester, joinButton().first);
       expect(find.text('1500 XP'), findsWidgets);
       expect(find.text('Katıldın'), findsWidgets);
       await waitSnackBar(tester);
 
       await tester.tap(find.text('Panel'));
       await tester.pumpAndSettle();
-      expect(find.text('Projelerin (2)'), findsOneWidget);
+      expect(
+        find.text('Çalışma Alanında Aç', skipOffstage: false),
+        findsNWidgets(2),
+      );
 
       // Alanım (mobil): yeni projenin görevleri sekmelerde görünür.
       await tester.tap(find.text('Alanım'));
@@ -138,7 +144,7 @@ void main() {
 
     await tester.tap(find.text('Keşfet'));
     await tester.pumpAndSettle();
-    await tapVisible(tester, find.text('Projeye Katıl').first);
+    await tapVisible(tester, joinButton().first);
     await waitSnackBar(tester);
 
     await tester.tap(find.text('Alanım'));
@@ -158,7 +164,10 @@ void main() {
     await startApp(tester, key: const ValueKey('ikinci-acilis'));
     expect(find.text('Hızlı Demo Girişi'), findsNothing);
     expect(find.text('1620 XP'), findsWidgets);
-    expect(find.text('Projelerin (2)'), findsOneWidget);
+    expect(
+      find.text('Çalışma Alanında Aç', skipOffstage: false),
+      findsNWidgets(2),
+    );
 
     await tester.tap(find.text('Alanım'));
     await tester.pumpAndSettle();
@@ -197,9 +206,9 @@ void main() {
     await tapVisible(tester, find.text('Hesap Oluştur'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Hoş geldin, Ece'), findsOneWidget);
+    expect(find.text('Tekrar hoş geldin, Ece'), findsOneWidget);
     expect(find.text('0 XP'), findsWidgets);
-    expect(find.text('Henüz bir projeye katılmadın'), findsOneWidget);
+    expect(find.textContaining('Henüz bir projeye katılmadın'), findsOneWidget);
 
     await tester.tap(find.text('Alanım'));
     await tester.pumpAndSettle();
@@ -225,7 +234,7 @@ void main() {
     );
     await tapVisible(tester, find.text('Giriş Yap').last);
     await tester.pumpAndSettle();
-    expect(find.text('Hoş geldin, Ece'), findsOneWidget);
+    expect(find.text('Tekrar hoş geldin, Ece'), findsOneWidget);
   });
 
   testWidgets('Sıralamada öğrenciye dokununca profili açılır', (tester) async {
@@ -259,10 +268,10 @@ void main() {
 
     // Alt menü yok, sol menü var.
     expect(find.byType(NavigationBar), findsNothing);
-    expect(find.text('ÖĞRENCİ PLATFORMU'), findsOneWidget);
+    expect(find.text('Öğrenci'), findsOneWidget);
     expect(find.text('Şirket Paneli'), findsOneWidget);
-    expect(find.text('AI Kod Skoru'), findsOneWidget);
-    expect(find.text('Yaklaşan Teslimler'), findsOneWidget);
+    expect(find.text('Ortalama AI Skoru'), findsOneWidget);
+    expect(find.text('Yaklaşan Teslim Tarihleri'), findsOneWidget);
 
     await tester.tap(find.text('Proje Çalışma Alanı'));
     await tester.pumpAndSettle();
@@ -271,16 +280,16 @@ void main() {
     }
 
     // AI değerlendirmesi: rapor ve katkı tablosu görünür.
-    await tapVisible(tester, find.text('Teslim Et ve Değerlendir'));
+    await tapVisible(tester, find.text('Değerlendir'));
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
     expect(find.text('Bireysel Katkı Tahmini'), findsOneWidget);
-    expect(find.text('MVP Simülasyonu'), findsOneWidget);
+    expect(find.textContaining('MVP simülasyonu'), findsWidgets);
     await waitSnackBar(tester);
 
     await tester.tap(find.text('Genel Bakış'));
     await tester.pumpAndSettle();
-    expect(find.text('/100 • MVP simülasyonu'), findsOneWidget);
+    expect(find.text('88/100'), findsOneWidget);
   });
 
   testWidgets('Tanıtım sayfası: bölümler ve formlar arası geçiş', (

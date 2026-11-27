@@ -272,6 +272,7 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
         onSelectProject: _selectProject,
         onGoToWorkspace: () => setState(() => _currentIndex = 2),
         onGoToMarketplace: () => setState(() => _currentIndex = 1),
+        onGoToLeaderboard: () => setState(() => _currentIndex = 3),
       ),
       MarketplaceScreen(
         joinedProjectIds: _joinedProjectIds.toSet(),
@@ -333,7 +334,7 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
         titleSpacing: 16,
         title: Row(
           children: [
-            const _LogoMark(size: 26),
+            const _LogoMark(size: 22),
             const SizedBox(width: 10),
             Flexible(
               child: Text(
@@ -464,7 +465,7 @@ const _studentEntries = [
 class _LogoMark extends StatelessWidget {
   final double size;
 
-  const _LogoMark({this.size = 28});
+  const _LogoMark({this.size = 24});
 
   @override
   Widget build(BuildContext context) {
@@ -474,21 +475,22 @@ class _LogoMark extends StatelessWidget {
       alignment: Alignment.center,
       decoration: BoxDecoration(
         color: ProviaTheme.primary,
-        borderRadius: BorderRadius.circular(size * 0.26),
+        borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
       ),
       child: Text(
         'P',
         style: TextStyle(
           color: ProviaTheme.onPrimary,
-          fontWeight: FontWeight.w800,
-          fontSize: size * 0.52,
+          fontWeight: FontWeight.w700,
+          fontSize: size * 0.55,
+          height: 1,
         ),
       ),
     );
   }
 }
 
-/// "1450 XP | Sv. 4" hapı.
+/// "1450 XP · Sv. 4" — kılcal kenarlıklı, sade.
 class _XpPill extends StatelessWidget {
   final int xp;
   final bool compact;
@@ -498,23 +500,37 @@ class _XpPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final level = (xp ~/ 400) + 1;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: ProviaTheme.xp.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: ProviaTheme.xp.withValues(alpha: 0.35)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(LucideIcons.zap, size: 13, color: ProviaTheme.xp),
-          const SizedBox(width: 6),
-          Text(
-            compact ? '$xp XP' : '$xp XP  |  Sv. $level',
-            style: ProviaTheme.mono(size: 12, color: ProviaTheme.xp),
-          ),
-        ],
+    return Semantics(
+      label: '$xp XP, seviye $level',
+      child: Container(
+        height: 30,
+        padding: const EdgeInsets.symmetric(horizontal: 10),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
+          border: Border.all(color: ProviaTheme.borderDark),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              '$xp XP',
+              style: ProviaTheme.mono(size: 12, color: ProviaTheme.xp),
+            ),
+            if (!compact) ...[
+              Text(
+                '  ·  ',
+                style: ProviaTheme.mono(
+                  size: 12,
+                  color: ProviaTheme.textSubtle,
+                ),
+              ),
+              Text(
+                'Sv. $level',
+                style: ProviaTheme.mono(size: 12, color: ProviaTheme.textMuted),
+              ),
+            ],
+          ],
+        ),
       ),
     );
   }
@@ -530,15 +546,21 @@ class _MenuRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 16),
+        Icon(icon, size: 15, color: ProviaTheme.textMuted),
         const SizedBox(width: 10),
-        Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
+        Flexible(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 13),
+          ),
+        ),
       ],
     );
   }
 }
 
-/// Masaüstü üst başlığı: sayfa adı + XP hapı + bildirimler.
+/// Masaüstü üst başlığı: sayfa adı + XP + bildirimler.
 class _TopHeader extends StatelessWidget {
   final String title;
   final int userXp;
@@ -553,8 +575,8 @@ class _TopHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: 64,
-      padding: const EdgeInsets.symmetric(horizontal: 28),
+      height: 52,
+      padding: const EdgeInsets.symmetric(horizontal: 24),
       decoration: const BoxDecoration(
         color: ProviaTheme.bgDark,
         border: Border(bottom: BorderSide(color: ProviaTheme.borderDark)),
@@ -565,61 +587,49 @@ class _TopHeader extends StatelessWidget {
             child: Text(
               title,
               overflow: TextOverflow.ellipsis,
-              style: ProviaTheme.heading(size: 17),
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                letterSpacing: -0.2,
+              ),
             ),
           ),
           _XpPill(xp: userXp),
-          const SizedBox(width: 10),
+          const SizedBox(width: 8),
           PopupMenuButton<int>(
             tooltip: 'Bildirimler',
-            offset: const Offset(0, 44),
+            position: PopupMenuPosition.under,
             itemBuilder: (context) => [
               const PopupMenuItem(
                 enabled: false,
-                height: 36,
+                height: 32,
                 child: Text(
-                  'BİLDİRİMLER',
+                  'Bildirimler',
                   style: TextStyle(
                     color: ProviaTheme.textSubtle,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 1.1,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
               for (final n in notifications)
                 PopupMenuItem(
                   enabled: false,
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Padding(
-                        padding: EdgeInsets.only(top: 5),
-                        child: Icon(
-                          Icons.circle,
-                          size: 6,
-                          color: ProviaTheme.primary,
-                        ),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Text(
-                          n,
-                          style: const TextStyle(
-                            color: ProviaTheme.textPrimary,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
+                  height: 36,
+                  child: Text(
+                    n,
+                    style: const TextStyle(
+                      color: ProviaTheme.textPrimary,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
             ],
             child: Container(
-              width: 36,
-              height: 36,
+              width: 30,
+              height: 30,
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
                 border: Border.all(color: ProviaTheme.borderDark),
               ),
               child: Stack(
@@ -627,18 +637,18 @@ class _TopHeader extends StatelessWidget {
                 children: [
                   const Icon(
                     LucideIcons.bell,
-                    size: 16,
+                    size: 14,
                     color: ProviaTheme.textMuted,
                   ),
                   if (notifications.isNotEmpty)
                     Positioned(
-                      top: 8,
-                      right: 9,
+                      top: 6,
+                      right: 7,
                       child: Container(
-                        width: 6,
-                        height: 6,
+                        width: 5,
+                        height: 5,
                         decoration: const BoxDecoration(
-                          color: ProviaTheme.primary,
+                          color: ProviaTheme.textPrimary,
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -653,7 +663,7 @@ class _TopHeader extends StatelessWidget {
   }
 }
 
-/// Masaüstü sol menüsü (260px).
+/// Masaüstü sol menüsü (220px).
 class _Sidebar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onSelect;
@@ -676,8 +686,7 @@ class _Sidebar extends StatelessWidget {
   static const _sectionStyle = TextStyle(
     color: ProviaTheme.textSubtle,
     fontSize: 11,
-    fontWeight: FontWeight.w700,
-    letterSpacing: 1.2,
+    fontWeight: FontWeight.w500,
   );
 
   @override
@@ -686,86 +695,70 @@ class _Sidebar extends StatelessWidget {
     final school = account.university.split('•').first.trim();
 
     return Container(
-      width: 260,
-      color: ProviaTheme.surfaceDark,
+      width: 220,
+      color: ProviaTheme.bgDark,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Container(
-            height: 64,
-            padding: const EdgeInsets.symmetric(horizontal: 18),
-            decoration: const BoxDecoration(
-              border: Border(bottom: BorderSide(color: ProviaTheme.borderDark)),
-            ),
-            child: Row(
-              children: [
-                const _LogoMark(size: 30),
-                const SizedBox(width: 10),
-                Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'PROVIA',
-                      style: ProviaTheme.heading(
-                        size: 15,
-                        weight: FontWeight.w800,
-                      ),
+          SizedBox(
+            height: 52,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Row(
+                children: [
+                  const _LogoMark(),
+                  const SizedBox(width: 10),
+                  const Text(
+                    'PROVIA',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      letterSpacing: -0.2,
                     ),
-                    Text(
-                      'MVP v1.0',
-                      style: ProviaTheme.mono(
-                        size: 10,
-                        weight: FontWeight.w500,
-                        color: ProviaTheme.textSubtle,
-                      ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    'v1.0',
+                    style: ProviaTheme.mono(
+                      size: 11,
+                      color: ProviaTheme.textSubtle,
                     ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
+          const Divider(),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(10, 20, 10, 12),
+              padding: const EdgeInsets.fromLTRB(8, 16, 8, 8),
               children: [
                 const Padding(
-                  padding: EdgeInsets.fromLTRB(10, 0, 10, 10),
-                  child: Text('ÖĞRENCİ PLATFORMU', style: _sectionStyle),
+                  padding: EdgeInsets.fromLTRB(8, 0, 8, 6),
+                  child: Text('Öğrenci', style: _sectionStyle),
                 ),
                 for (final entry in _studentEntries)
                   _SidebarItem(
                     icon: entry.icon,
                     label: entry.label,
                     selected: entry.index == currentIndex,
-                    trailing: entry.index == null
-                        ? const StatusBadge(
-                            label: 'Yakında',
-                            color: ProviaTheme.textSubtle,
-                          )
-                        : null,
+                    trailingText: entry.index == null ? 'Yakında' : null,
                     muted: entry.index == null,
                     onTap: () => entry.index == null
                         ? onSoon(entry.label)
                         : onSelect(entry.index!),
                   ),
-                const SizedBox(height: 14),
-                const Divider(),
-                const SizedBox(height: 14),
+                const SizedBox(height: 20),
                 const Padding(
-                  padding: EdgeInsets.fromLTRB(10, 0, 10, 10),
-                  child: Text('GELECEK MODÜLÜ', style: _sectionStyle),
+                  padding: EdgeInsets.fromLTRB(8, 0, 8, 6),
+                  child: Text('Gelecek modül', style: _sectionStyle),
                 ),
                 _SidebarItem(
                   icon: LucideIcons.building2,
                   label: 'Şirket Paneli',
                   selected: false,
                   muted: true,
-                  trailing: StatusBadge(
-                    label: 'Önizleme',
-                    color: ProviaTheme.primary,
-                    mono: true,
-                  ),
+                  trailingText: 'Önizleme',
                   onTap: () => onSoon('Şirket Paneli'),
                 ),
               ],
@@ -773,27 +766,20 @@ class _Sidebar extends StatelessWidget {
           ),
           const Divider(),
           Padding(
-            padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
-            child: TextButton.icon(
-              onPressed: onReset,
-              style: TextButton.styleFrom(
-                foregroundColor: ProviaTheme.textSubtle,
-                alignment: Alignment.centerLeft,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                textStyle: const TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              icon: const Icon(LucideIcons.rotateCcw, size: 14),
-              label: const Text('Demo Verilerini Sıfırla'),
+            padding: const EdgeInsets.fromLTRB(8, 6, 8, 0),
+            child: _SidebarItem(
+              icon: LucideIcons.rotateCcw,
+              label: 'Demo verilerini sıfırla',
+              selected: false,
+              muted: true,
+              onTap: onReset,
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 6, 8, 14),
+            padding: const EdgeInsets.fromLTRB(14, 6, 6, 10),
             child: Row(
               children: [
-                ProviaAvatar(name: account.name, size: 34),
+                ProviaAvatar(name: account.name, size: 28),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Column(
@@ -805,11 +791,11 @@ class _Sidebar extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                       Text(
-                        '$school • Sv. $level',
+                        metaLine([school, 'Sv. $level']),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
@@ -823,11 +809,7 @@ class _Sidebar extends StatelessWidget {
                 IconButton(
                   tooltip: 'Çıkış Yap',
                   onPressed: onSignOut,
-                  icon: const Icon(
-                    LucideIcons.logOut,
-                    size: 17,
-                    color: ProviaTheme.textMuted,
-                  ),
+                  icon: const Icon(LucideIcons.logOut, size: 15),
                 ),
               ],
             ),
@@ -843,7 +825,7 @@ class _SidebarItem extends StatelessWidget {
   final String label;
   final bool selected;
   final bool muted;
-  final Widget? trailing;
+  final String? trailingText;
   final VoidCallback onTap;
 
   const _SidebarItem({
@@ -852,36 +834,30 @@ class _SidebarItem extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.muted = false,
-    this.trailing,
+    this.trailingText,
   });
 
   @override
   Widget build(BuildContext context) {
     final color = selected
-        ? ProviaTheme.primary
+        ? ProviaTheme.textPrimary
         : (muted ? ProviaTheme.textSubtle : ProviaTheme.textMuted);
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 2),
+      padding: const EdgeInsets.only(bottom: 1),
       child: Material(
-        color: selected
-            ? ProviaTheme.primary.withValues(alpha: 0.1)
-            : Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(
-            color: selected ? ProviaTheme.borderHighlight : Colors.transparent,
-          ),
-        ),
+        color: selected ? ProviaTheme.surfaceElevated : Colors.transparent,
+        borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
         child: InkWell(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
           onTap: onTap,
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 32),
+            padding: const EdgeInsets.symmetric(horizontal: 8),
             child: Row(
               children: [
-                Icon(icon, size: 17, color: color),
-                const SizedBox(width: 12),
+                Icon(icon, size: 15, color: color),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(
                     label,
@@ -889,12 +865,19 @@ class _SidebarItem extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 13,
-                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                      color: selected ? ProviaTheme.primary : color,
+                      fontWeight: selected ? FontWeight.w500 : FontWeight.w400,
+                      color: color,
                     ),
                   ),
                 ),
-                ?trailing,
+                if (trailingText != null)
+                  Text(
+                    trailingText!,
+                    style: ProviaTheme.mono(
+                      size: 10,
+                      color: ProviaTheme.textSubtle,
+                    ),
+                  ),
               ],
             ),
           ),

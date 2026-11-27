@@ -243,20 +243,13 @@ class _AuthScreenState extends State<AuthScreen> {
           const SizedBox(height: 18),
           OutlinedButton.icon(
             onPressed: () => widget.onSignedIn(ProviaAccount.demo),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: ProviaTheme.accent,
-              side: BorderSide(
-                color: ProviaTheme.accent.withValues(alpha: 0.45),
-              ),
-              backgroundColor: ProviaTheme.accent.withValues(alpha: 0.06),
-              minimumSize: const Size(0, 44),
-            ),
-            icon: const Icon(LucideIcons.zap, size: 16),
+            style: OutlinedButton.styleFrom(minimumSize: const Size(0, 40)),
+            icon: const Icon(LucideIcons.play, size: 13),
             label: const Text('Hızlı Demo Girişi'),
           ),
           const SizedBox(height: 8),
           Text(
-            'Hazır demo hesabı: Deniz Aydın • 1450 XP • 1 aktif proje',
+            'Demo hesabı: Deniz Aydın · 1450 XP · 1 aktif proje',
             textAlign: TextAlign.center,
             style: ProviaTheme.mono(
               size: 11,
@@ -271,32 +264,12 @@ class _AuthScreenState extends State<AuthScreen> {
     return Scaffold(
       body: Stack(
         children: [
-          // Üstte çok hafif indigo ışıma.
-          Positioned(
-            top: -260,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                width: 760,
-                height: 520,
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    colors: [
-                      ProviaTheme.primary.withValues(alpha: 0.10),
-                      ProviaTheme.primary.withValues(alpha: 0),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
           SafeArea(
             child: Center(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(20),
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 420),
+                  constraints: const BoxConstraints(maxWidth: 380),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
@@ -352,33 +325,32 @@ class _BrandHeader extends StatelessWidget {
     return Column(
       children: [
         Container(
-          width: 44,
-          height: 44,
+          width: 32,
+          height: 32,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            color: ProviaTheme.primary.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(11),
-            border: Border.all(color: ProviaTheme.borderHighlight),
+            color: ProviaTheme.primary,
+            borderRadius: BorderRadius.circular(ProviaTheme.radius),
           ),
           child: const Text(
             'P',
             style: TextStyle(
-              color: ProviaTheme.primary,
-              fontWeight: FontWeight.w800,
-              fontSize: 22,
+              color: ProviaTheme.onPrimary,
+              fontWeight: FontWeight.w700,
+              fontSize: 17,
+              height: 1,
             ),
           ),
         ),
-        const SizedBox(height: 18),
+        const SizedBox(height: 16),
         Text(
-          'İlk stajından önce deneyim kazan.',
+          'PROVIA hesabına giriş yap',
           textAlign: TextAlign.center,
-          style: ProviaTheme.heading(size: 24, weight: FontWeight.w800),
+          style: ProviaTheme.heading(size: 20),
         ),
         const SizedBox(height: 8),
         const Text(
-          'Şirket destekli gerçek projelerde takımla çalış, katkını '
-          'değerlendirt, doğrulanmış portfolyonu oluştur.',
+          'İlk stajından önce gerçek projelerle deneyim kazan.',
           textAlign: TextAlign.center,
           style: TextStyle(
             color: ProviaTheme.textMuted,

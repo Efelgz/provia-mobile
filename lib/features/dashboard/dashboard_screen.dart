@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/data/mock_data.dart';
-import '../../core/widgets/project_switcher.dart';
 import '../../core/widgets/provia_components.dart';
 import '../../models/provia_models.dart';
 
@@ -14,6 +13,7 @@ class DashboardScreen extends StatelessWidget {
   final ValueChanged<String> onSelectProject;
   final VoidCallback onGoToWorkspace;
   final VoidCallback onGoToMarketplace;
+  final VoidCallback onGoToLeaderboard;
 
   const DashboardScreen({
     super.key,
@@ -24,171 +24,90 @@ class DashboardScreen extends StatelessWidget {
     required this.onSelectProject,
     required this.onGoToWorkspace,
     required this.onGoToMarketplace,
+    required this.onGoToLeaderboard,
   });
+
+  void _openProject(String id) {
+    onSelectProject(id);
+    onGoToWorkspace();
+  }
 
   @override
   Widget build(BuildContext context) {
-    final int level = (userXp ~/ 400) + 1;
-    final int xpInLevel = userXp % 400;
-    final ProviaProject? activeProject = joinedProjects.isEmpty
-        ? null
-        : joinedProjects.firstWhere(
-            (p) => p.id == activeProjectId,
-            orElse: () => joinedProjects.first,
-          );
-    final myRank = ProviaMockData.rankedLeaderboard(
-      userXp,
-    ).firstWhere(ProviaMockData.isCurrentUser).rank;
+    final ranked = ProviaMockData.rankedLeaderboard(userXp);
+    final myRank = ranked.firstWhere(ProviaMockData.isCurrentUser).rank;
+    final myDoneTasks = [
+      for (final p in joinedProjects)
+        ...ProviaMockData.tasksFor(
+          p.id,
+        ).where((t) => t.assignee == 'Sen' && t.status == 'Tamamlandı'),
+    ];
     final hasAiScore = evaluatedProjectIds.isNotEmpty;
-    final firstName = ProviaMockData.currentUserName.split(' ').first;
-    final isDesktop = ProviaBreakpoints.isDesktop(context);
 
     return ProviaPageView(
       children: [
-        // Karşılama başlığı
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Hoş geldin, $firstName',
-                    style: ProviaTheme.heading(
-                      size: 24,
-                      weight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'İlk stajından önce gerçek projelerle deneyim kazan.',
-                    style: TextStyle(
-                      color: ProviaTheme.textMuted,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isDesktop) ...[
-              const SizedBox(width: 16),
-              ElevatedButton.icon(
-                onPressed: onGoToMarketplace,
-                icon: const Icon(LucideIcons.compass, size: 16),
-                label: const Text('Projeleri Keşfet'),
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: 22),
-
-        // KPI ızgarası: masaüstünde 4 sütun, mobilde 2x2
-        ProviaGrid(
-          minItemWidth: 150,
-          maxColumns: 4,
-          children: [
-            MetricStatCard(
-              icon: LucideIcons.zap,
-              color: ProviaTheme.xp,
-              label: 'Seviye & XP',
-              value: 'Sv. $level',
-              caption: '$userXp XP toplam',
-            ),
-            MetricStatCard(
-              icon: LucideIcons.layers,
-              color: ProviaTheme.primary,
-              label: 'Aktif Proje',
-              value: '${joinedProjects.length}',
-              caption: joinedProjects.isEmpty
-                  ? 'Henüz katılım yok'
-                  : 'Devam eden proje',
-            ),
-            MetricStatCard(
-              icon: LucideIcons.trophy,
-              color: ProviaTheme.warning,
-              label: 'Aylık Sıra',
-              value: '#$myRank',
-              caption: 'Kasım 2026',
-            ),
-            MetricStatCard(
-              icon: LucideIcons.sparkles,
-              color: ProviaTheme.info,
-              label: 'AI Kod Skoru',
-              value: hasAiScore ? '88' : '—',
-              caption: hasAiScore
-                  ? '/100 • MVP simülasyonu'
-                  : 'Henüz teslim yok',
-            ),
-          ],
-        ),
+        _WelcomeHeader(userXp: userXp),
         const SizedBox(height: 12),
-
-        // Seviye ilerlemesi
-        ProviaCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text.rich(
-                      TextSpan(
-                        children: [
-                          TextSpan(
-                            text: 'Seviye $level',
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                          TextSpan(
-                            text: '  →  Seviye ${level + 1}',
-                            style: const TextStyle(
-                              color: ProviaTheme.textMuted,
-                            ),
-                          ),
-                        ],
-                      ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    '$xpInLevel / 400 XP',
-                    style: ProviaTheme.mono(size: 12, color: ProviaTheme.xp),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              ProviaProgressBar(value: xpInLevel / 400),
-              const SizedBox(height: 8),
-              Text(
-                'Sonraki seviyeye ${400 - xpInLevel} XP kaldı',
-                style: const TextStyle(
-                  color: ProviaTheme.textSubtle,
-                  fontSize: 12,
-                ),
-              ),
-            ],
-          ),
+        MetricStrip(
+          items: [
+            MetricItem(
+              label: 'Aktif Projeler',
+              value: '${joinedProjects.length}',
+              caption: 'Çalışma alanında',
+              icon: LucideIcons.folderOpen,
+            ),
+            MetricItem(
+              label: 'Tamamlanan Görevler',
+              value: '${myDoneTasks.length}',
+              caption: 'Sana atanmış',
+              icon: LucideIcons.checkSquare,
+            ),
+            MetricItem(
+              label: 'Ortalama AI Skoru',
+              value: hasAiScore ? '88/100' : '—',
+              caption: hasAiScore ? 'MVP simülasyonu' : 'Henüz teslim yok',
+              icon: LucideIcons.cpu,
+            ),
+            MetricItem(
+              label: 'Aylık Sıralama',
+              value: '#$myRank',
+              caption: 'Bireysel ligde',
+              icon: LucideIcons.trophy,
+            ),
+          ],
         ),
-        const SizedBox(height: 28),
-
-        // Ana bölüm: masaüstünde 2 sütun, mobilde alt alta
+        const SizedBox(height: 16),
         LayoutBuilder(
           builder: (context, constraints) {
-            final left = _ActiveProjectSection(
-              joinedProjects: joinedProjects,
-              activeProject: activeProject,
-              onSelectProject: onSelectProject,
-              onGoToWorkspace: onGoToWorkspace,
-              onGoToMarketplace: onGoToMarketplace,
+            final left = Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _ActiveProjectsPanel(
+                  projects: joinedProjects,
+                  activeProjectId: activeProjectId,
+                  onOpen: _openProject,
+                  onExplore: onGoToMarketplace,
+                ),
+                const SizedBox(height: 16),
+                _RecommendedPanel(
+                  joinedIds: joinedProjects.map((p) => p.id).toSet(),
+                  userXp: userXp,
+                  onExplore: onGoToMarketplace,
+                ),
+              ],
             );
-            final right = _SidePanel(
-              joinedProjects: joinedProjects,
-              onSelectProject: onSelectProject,
-              onGoToWorkspace: onGoToWorkspace,
-              onGoToMarketplace: onGoToMarketplace,
+            final right = Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _DeadlinesPanel(projects: joinedProjects, onOpen: _openProject),
+                const SizedBox(height: 16),
+                _TopFivePanel(ranked: ranked, onSeeAll: onGoToLeaderboard),
+                const SizedBox(height: 16),
+                _ActivityPanel(
+                  projects: joinedProjects,
+                  evaluatedProjectIds: evaluatedProjectIds,
+                ),
+              ],
             );
             if (constraints.maxWidth >= 860) {
               return Row(
@@ -202,7 +121,7 @@ class DashboardScreen extends StatelessWidget {
             }
             return Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [left, const SizedBox(height: 28), right],
+              children: [left, const SizedBox(height: 16), right],
             );
           },
         ),
@@ -211,166 +130,354 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-class _ActiveProjectSection extends StatelessWidget {
-  final List<ProviaProject> joinedProjects;
-  final ProviaProject? activeProject;
-  final ValueChanged<String> onSelectProject;
-  final VoidCallback onGoToWorkspace;
-  final VoidCallback onGoToMarketplace;
+// ---------------------------------------------------------------------------
 
-  const _ActiveProjectSection({
-    required this.joinedProjects,
-    required this.activeProject,
-    required this.onSelectProject,
-    required this.onGoToWorkspace,
-    required this.onGoToMarketplace,
+class _WelcomeHeader extends StatelessWidget {
+  final int userXp;
+
+  const _WelcomeHeader({required this.userXp});
+
+  @override
+  Widget build(BuildContext context) {
+    final level = (userXp ~/ 400) + 1;
+    final nextLevelXp = level * 400;
+    final xpInLevel = userXp % 400;
+    final firstName = ProviaMockData.currentUserName.split(' ').first;
+
+    final greeting = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Tekrar hoş geldin, $firstName',
+          style: ProviaTheme.heading(size: 20),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          ProviaMockData.currentUserUniversity,
+          style: const TextStyle(color: ProviaTheme.textMuted, fontSize: 13),
+        ),
+      ],
+    );
+
+    final levelBlock = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                'Seviye $level Geliştirici',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            Text(
+              '$userXp / $nextLevelXp XP',
+              style: ProviaTheme.mono(size: 12, color: ProviaTheme.xp),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+        ProviaProgressBar(value: xpInLevel / 400),
+        const SizedBox(height: 6),
+        Text(
+          'Sonraki seviye için ${400 - xpInLevel} XP kaldı.',
+          style: const TextStyle(color: ProviaTheme.textSubtle, fontSize: 11),
+        ),
+      ],
+    );
+
+    return ProviaCard(
+      padding: const EdgeInsets.all(20),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (constraints.maxWidth >= 640) {
+            return Row(
+              children: [
+                Expanded(child: greeting),
+                const SizedBox(width: 24),
+                SizedBox(width: 300, child: levelBlock),
+              ],
+            );
+          }
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [greeting, const SizedBox(height: 16), levelBlock],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ActiveProjectsPanel extends StatelessWidget {
+  final List<ProviaProject> projects;
+  final String? activeProjectId;
+  final ValueChanged<String> onOpen;
+  final VoidCallback onExplore;
+
+  const _ActiveProjectsPanel({
+    required this.projects,
+    required this.activeProjectId,
+    required this.onOpen,
+    required this.onExplore,
   });
 
   @override
   Widget build(BuildContext context) {
-    final project = activeProject;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return ProviaPanel(
+      title: 'Aktif Projelerim',
+      trailing: TextButton.icon(
+        onPressed: onExplore,
+        icon: const Icon(LucideIcons.plus, size: 14),
+        label: const Text('Yeni Proje Keşfet'),
+      ),
       children: [
-        SectionHeader(
-          title: joinedProjects.length > 1
-              ? 'Projelerin (${joinedProjects.length})'
-              : 'Aktif Projen',
-          subtitle: 'Takımınla birlikte yürüttüğün projeler',
-        ),
-        const SizedBox(height: 12),
-        if (project == null)
-          _NoProjectCard(onGoToMarketplace: onGoToMarketplace)
-        else ...[
-          if (joinedProjects.length > 1) ...[
-            ProjectSwitcher(
-              projects: joinedProjects,
-              activeProjectId: project.id,
-              onSelect: onSelectProject,
+        if (projects.isEmpty)
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                const Text(
+                  "Henüz bir projeye katılmadın. Bir proje seç ve ilk XP'ni kazan.",
+                  style: TextStyle(color: ProviaTheme.textMuted, fontSize: 13),
+                ),
+                ElevatedButton(
+                  onPressed: onExplore,
+                  child: const Text('İlk Projeni Seç'),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-          ],
-          _ActiveProjectCard(
-            project: project,
-            onGoToWorkspace: onGoToWorkspace,
           ),
-        ],
+        for (final p in projects)
+          _ProjectRow(
+            project: p,
+            active: p.id == activeProjectId,
+            onOpen: () => onOpen(p.id),
+          ),
       ],
     );
   }
 }
 
-class _ActiveProjectCard extends StatelessWidget {
+class _ProjectRow extends StatelessWidget {
   final ProviaProject project;
-  final VoidCallback onGoToWorkspace;
+  final bool active;
+  final VoidCallback onOpen;
 
-  const _ActiveProjectCard({
+  const _ProjectRow({
     required this.project,
-    required this.onGoToWorkspace,
+    required this.active,
+    required this.onOpen,
   });
 
   @override
   Widget build(BuildContext context) {
+    final tasks = ProviaMockData.tasksFor(project.id);
+    final done = tasks.where((t) => t.status == 'Tamamlandı').length;
     final completion = ProviaMockData.completionFor(project.id);
-    final team = ProviaMockData.teamFor(project.id);
 
+    final info = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                project.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (project.isCompanySponsored) ...[
+              const SizedBox(width: 8),
+              const StatusBadge(label: 'Sponsorlu', color: ProviaTheme.accent),
+            ],
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          metaLine([
+            'Teslim: ${ProviaMockData.deadlineLabel(project)}',
+            '$done/${tasks.length} görev',
+          ]),
+          style: ProviaTheme.mono(size: 11, color: ProviaTheme.textSubtle),
+        ),
+      ],
+    );
+
+    final button = active
+        ? ElevatedButton(
+            onPressed: onOpen,
+            child: const Text('Çalışma Alanında Aç'),
+          )
+        : OutlinedButton(
+            onPressed: onOpen,
+            child: const Text('Çalışma Alanında Aç'),
+          );
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final narrow = constraints.maxWidth < 440;
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (narrow)
+                info
+              else
+                Row(
+                  children: [
+                    Expanded(child: info),
+                    const SizedBox(width: 16),
+                    button,
+                  ],
+                ),
+              const SizedBox(height: 12),
+              ProviaProgressBar(
+                value: completion,
+                color: active ? ProviaTheme.primary : ProviaTheme.textSubtle,
+              ),
+              if (narrow) ...[const SizedBox(height: 12), button],
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _RecommendedPanel extends StatelessWidget {
+  final Set<String> joinedIds;
+  final int userXp;
+  final VoidCallback onExplore;
+
+  const _RecommendedPanel({
+    required this.joinedIds,
+    required this.userXp,
+    required this.onExplore,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final level = (userXp ~/ 400) + 1;
+    final fits = level <= 2
+        ? const ['Başlangıç', 'Orta']
+        : const ['Orta', 'İleri'];
+    final candidates =
+        ProviaMockData.projects.where((p) => !joinedIds.contains(p.id)).toList()
+          ..sort(
+            (a, b) => (fits.contains(b.difficulty) ? 1 : 0).compareTo(
+              fits.contains(a.difficulty) ? 1 : 0,
+            ),
+          );
+    final picks = candidates.take(2).toList();
+
+    return ProviaPanel(
+      title: 'Seviyene Göre Önerilen Projeler',
+      trailing: TextButton(
+        onPressed: onExplore,
+        child: const Text('Tümünü gör'),
+      ),
+      children: [
+        if (picks.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Tüm projelere katıldın.',
+              style: TextStyle(color: ProviaTheme.textMuted, fontSize: 13),
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.all(12),
+            child: ProviaGrid(
+              minItemWidth: 240,
+              maxColumns: 2,
+              children: [
+                for (final p in picks)
+                  _RecommendedCard(project: p, onOpen: onExplore),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+class _RecommendedCard extends StatelessWidget {
+  final ProviaProject project;
+  final VoidCallback onOpen;
+
+  const _RecommendedCard({required this.project, required this.onOpen});
+
+  @override
+  Widget build(BuildContext context) {
     return ProviaCard(
-      highlight: true,
-      padding: const EdgeInsets.all(18),
+      color: ProviaTheme.bgDark,
+      padding: const EdgeInsets.all(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Expanded(
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: StatusBadge(
-                    label: project.company,
+                child: Text(
+                  project.isCompanySponsored
+                      ? project.company
+                      : 'Topluluk Projesi',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
                     color: project.isCompanySponsored
-                        ? ProviaTheme.primary
-                        : ProviaTheme.textMuted,
-                    icon: project.isCompanySponsored
-                        ? LucideIcons.building2
-                        : LucideIcons.users,
+                        ? ProviaTheme.accent
+                        : ProviaTheme.textSubtle,
+                    fontSize: 12,
                   ),
                 ),
               ),
-              const SizedBox(width: 8),
-              StatusBadge(
-                label: project.deadline,
-                color: ProviaTheme.warning,
-                icon: LucideIcons.clock,
+              Text(
+                project.difficulty,
+                style: ProviaTheme.mono(
+                  size: 11,
+                  color: ProviaTheme.textSubtle,
+                ),
               ),
             ],
           ),
-          const SizedBox(height: 14),
-          Text(project.title, style: ProviaTheme.heading(size: 18)),
           const SizedBox(height: 6),
           Text(
+            project.title,
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 4),
+          Text(
             project.description,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: ProviaTheme.textMuted,
-              fontSize: 13,
+              fontSize: 12,
               height: 1.45,
             ),
           ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              const Text(
-                'Tamamlanma',
-                style: TextStyle(color: ProviaTheme.textMuted, fontSize: 12),
-              ),
-              const Spacer(),
-              Text(
-                '%${(completion * 100).round()}',
-                style: ProviaTheme.mono(size: 12),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ProviaProgressBar(value: completion, color: ProviaTheme.accent),
-          const SizedBox(height: 14),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [for (final t in project.technologies) TechChip(t)],
-          ),
-          const SizedBox(height: 16),
-          const Divider(),
-          const SizedBox(height: 14),
-          // Dar ekranda buton alt satıra iner, genişte sağa yaslanır.
-          SizedBox(
-            width: double.infinity,
-            child: Wrap(
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AvatarStack(names: team),
-                    const SizedBox(width: 10),
-                    Text(
-                      '${team.length} kişilik takım',
-                      style: const TextStyle(
-                        color: ProviaTheme.textMuted,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ],
-                ),
-                ElevatedButton.icon(
-                  onPressed: onGoToWorkspace,
-                  icon: const Icon(LucideIcons.arrowRight, size: 15),
-                  label: const Text('Çalışma Alanına Git'),
-                ),
-              ],
-            ),
+          const Spacer(),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            onPressed: onOpen,
+            child: const Text('Detayları İncele'),
           ),
         ],
       ),
@@ -378,153 +485,74 @@ class _ActiveProjectCard extends StatelessWidget {
   }
 }
 
-class _SidePanel extends StatelessWidget {
-  final List<ProviaProject> joinedProjects;
-  final ValueChanged<String> onSelectProject;
-  final VoidCallback onGoToWorkspace;
-  final VoidCallback onGoToMarketplace;
+class _DeadlinesPanel extends StatelessWidget {
+  final List<ProviaProject> projects;
+  final ValueChanged<String> onOpen;
 
-  const _SidePanel({
-    required this.joinedProjects,
-    required this.onSelectProject,
-    required this.onGoToWorkspace,
-    required this.onGoToMarketplace,
-  });
+  const _DeadlinesPanel({required this.projects, required this.onOpen});
 
   @override
   Widget build(BuildContext context) {
-    final upcoming = [...joinedProjects]
+    final sorted = [...projects]
       ..sort(
         (a, b) =>
             ProviaMockData.daysLeft(a).compareTo(ProviaMockData.daysLeft(b)),
       );
-    final joinedIds = joinedProjects.map((p) => p.id).toSet();
-    final candidates =
-        ProviaMockData.projects.where((p) => !joinedIds.contains(p.id)).toList()
-          ..sort(
-            (a, b) => (b.isCompanySponsored ? 1 : 0).compareTo(
-              a.isCompanySponsored ? 1 : 0,
-            ),
-          );
-    final recommended = candidates.isEmpty ? null : candidates.first;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
+    return ProviaPanel(
+      title: 'Yaklaşan Teslim Tarihleri',
       children: [
-        const SectionHeader(
-          title: 'Yaklaşan Teslimler',
-          subtitle: 'Sana atanmış açık görevler',
-        ),
-        const SizedBox(height: 12),
-        ProviaCard(
-          padding: EdgeInsets.zero,
-          child: upcoming.isEmpty
-              ? const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'Bir projeye katıldığında teslim tarihleri burada görünür.',
-                    style: TextStyle(
-                      color: ProviaTheme.textMuted,
-                      fontSize: 13,
-                    ),
-                  ),
-                )
-              : Column(
-                  children: [
-                    for (var i = 0; i < upcoming.length; i++) ...[
-                      if (i > 0) const Divider(),
-                      _DeadlineRow(
-                        project: upcoming[i],
-                        onTap: () {
-                          onSelectProject(upcoming[i].id);
-                          onGoToWorkspace();
-                        },
-                      ),
-                    ],
-                  ],
-                ),
-        ),
-        const SizedBox(height: 24),
-        SectionHeader(
-          title: 'Önerilen Proje',
-          actionLabel: 'Tümü',
-          onAction: onGoToMarketplace,
-        ),
-        const SizedBox(height: 12),
-        if (recommended == null)
-          const ProviaCard(
+        if (sorted.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(16),
             child: Text(
-              'Tüm projelere katıldın. Yeni projeler yakında eklenecek.',
+              'Projeye katıldığında teslim tarihleri burada görünür.',
               style: TextStyle(color: ProviaTheme.textMuted, fontSize: 13),
             ),
-          )
-        else
-          ProviaCard(
-            onTap: onGoToMarketplace,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        recommended.company,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          color: ProviaTheme.textMuted,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
+          ),
+        for (final p in sorted)
+          InkWell(
+            onTap: () => onOpen(p.id),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 5),
+                    child: StatusDot(
+                      ProviaMockData.daysLeft(p) <= 14
+                          ? ProviaTheme.warning
+                          : ProviaTheme.textSubtle,
                     ),
-                    Text(
-                      '+${recommended.xpReward} XP',
-                      style: ProviaTheme.mono(size: 12, color: ProviaTheme.xp),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  recommended.title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
                   ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 6,
-                  children: [
-                    for (final t in recommended.technologies.take(3))
-                      TechChip(t),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    StatusBadge(
-                      label: recommended.difficulty,
-                      color: ProviaTheme.textMuted,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          p.title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          ProviaMockData.deadlineLabel(p),
+                          style: ProviaTheme.mono(
+                            size: 11,
+                            color: ProviaTheme.textSubtle,
+                          ),
+                        ),
+                      ],
                     ),
-                    const Spacer(),
-                    const Text(
-                      'İncele',
-                      style: TextStyle(
-                        color: ProviaTheme.primary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    const Icon(
-                      LucideIcons.arrowRight,
-                      size: 14,
-                      color: ProviaTheme.primary,
-                    ),
-                  ],
-                ),
-              ],
+                  ),
+                ],
+              ),
             ),
           ),
       ],
@@ -532,131 +560,126 @@ class _SidePanel extends StatelessWidget {
   }
 }
 
-class _DeadlineRow extends StatelessWidget {
-  final ProviaProject project;
-  final VoidCallback onTap;
+class _TopFivePanel extends StatelessWidget {
+  final List<LeaderboardUser> ranked;
+  final VoidCallback onSeeAll;
 
-  const _DeadlineRow({required this.project, required this.onTap});
+  const _TopFivePanel({required this.ranked, required this.onSeeAll});
 
   @override
   Widget build(BuildContext context) {
-    final myOpenTasks = ProviaMockData.tasksFor(
-      project.id,
-    ).where((t) => t.assignee == 'Sen' && t.status != 'Tamamlandı').length;
-    final days = ProviaMockData.daysLeft(project);
-    final urgent = days <= 12;
+    return ProviaPanel(
+      title: 'Aylık Liderlik (İlk 5)',
+      trailing: TextButton(onPressed: onSeeAll, child: const Text('Tümü')),
+      dividers: false,
+      children: [
+        const SizedBox(height: 4),
+        for (final u in ranked.take(5))
+          _TopFiveRow(user: u, isMe: ProviaMockData.isCurrentUser(u)),
+        const SizedBox(height: 4),
+      ],
+    );
+  }
+}
 
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              padding: const EdgeInsets.symmetric(vertical: 6),
-              decoration: BoxDecoration(
-                color: (urgent ? ProviaTheme.warning : ProviaTheme.textMuted)
-                    .withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  Text(
-                    '$days',
-                    style: ProviaTheme.mono(
-                      size: 15,
-                      weight: FontWeight.w700,
-                      color: urgent
-                          ? ProviaTheme.warning
-                          : ProviaTheme.textPrimary,
-                    ),
-                  ),
-                  const Text(
-                    'gün',
-                    style: TextStyle(
-                      color: ProviaTheme.textSubtle,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
+class _TopFiveRow extends StatelessWidget {
+  final LeaderboardUser user;
+  final bool isMe;
+
+  const _TopFiveRow({required this.user, required this.isMe});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+      decoration: BoxDecoration(
+        color: isMe ? ProviaTheme.surfaceElevated : null,
+        borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 32,
+            child: Text(
+              '#${user.rank}',
+              style: ProviaTheme.mono(size: 12, color: ProviaTheme.textSubtle),
+            ),
+          ),
+          Expanded(
+            child: Text(
+              user.name.replaceAll(' (Sen)', ''),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: isMe ? FontWeight.w600 : FontWeight.w400,
               ),
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    project.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    myOpenTasks == 0
-                        ? 'Açık görevin yok'
-                        : '$myOpenTasks açık görevin var',
-                    style: const TextStyle(
-                      color: ProviaTheme.textMuted,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const Icon(
-              LucideIcons.chevronRight,
-              size: 16,
-              color: ProviaTheme.textSubtle,
-            ),
-          ],
-        ),
+          ),
+          Text(
+            '${user.xp} XP',
+            style: ProviaTheme.mono(size: 12, color: ProviaTheme.xp),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _NoProjectCard extends StatelessWidget {
-  final VoidCallback onGoToMarketplace;
+class _ActivityPanel extends StatelessWidget {
+  final List<ProviaProject> projects;
+  final Set<String> evaluatedProjectIds;
 
-  const _NoProjectCard({required this.onGoToMarketplace});
+  const _ActivityPanel({
+    required this.projects,
+    required this.evaluatedProjectIds,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return ProviaCard(
-      padding: const EdgeInsets.all(20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const IconBox(icon: LucideIcons.rocket, color: ProviaTheme.primary),
-          const SizedBox(height: 14),
-          const Text(
-            'Henüz bir projeye katılmadın',
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            "Şirket destekli veya topluluk projelerinden birine katıl, "
-            "takımınla görevleri tamamlayarak ilk XP'ni kazan.",
-            style: TextStyle(
-              color: ProviaTheme.textMuted,
-              fontSize: 13,
-              height: 1.45,
+    final items = <(String, int)>[];
+    for (final p in projects) {
+      if (evaluatedProjectIds.contains(p.id)) {
+        items.add(('${p.title} için AI değerlendirmesi tamamlandı.', 150));
+      }
+      for (final t in ProviaMockData.tasksFor(p.id)) {
+        if (t.assignee == 'Sen' && t.status == 'Tamamlandı') {
+          items.add(('"${t.title}" görevini tamamladın.', t.xp));
+        }
+      }
+    }
+
+    return ProviaPanel(
+      title: 'Son Aktiviteler',
+      children: [
+        if (items.isEmpty)
+          const Padding(
+            padding: EdgeInsets.all(16),
+            child: Text(
+              'Henüz aktivite yok. Görev tamamladıkça burada görünür.',
+              style: TextStyle(color: ProviaTheme.textMuted, fontSize: 13),
             ),
           ),
-          const SizedBox(height: 16),
-          ElevatedButton.icon(
-            onPressed: onGoToMarketplace,
-            icon: const Icon(LucideIcons.compass, size: 16),
-            label: const Text('İlk Projeni Seç'),
+        for (final item in items.take(4))
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.$1,
+                  style: const TextStyle(fontSize: 13, height: 1.4),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '+${item.$2} XP',
+                  style: ProviaTheme.mono(size: 11, color: ProviaTheme.accent),
+                ),
+              ],
+            ),
           ),
-        ],
-      ),
+      ],
     );
   }
 }

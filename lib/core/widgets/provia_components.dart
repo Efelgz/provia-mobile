@@ -3,11 +3,12 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
-/// PROVIA ortak arayüz parçaları. Tüm ekranlar aynı görünsün diye
-/// buradan kullanılır (Kişi 1 + Kişi 2).
+/// PROVIA ortak arayüz parçaları (Kişi 1 + Kişi 2).
+/// İlke: kart çorbası yok. Listeler tek bir kenarlıklı yüzeyde, 1px
+/// ayraçlarla; renk yalnızca durum ve veri için.
 
 // ---------------------------------------------------------------------------
-// Yerleşim yardımcıları
+// Yerleşim
 // ---------------------------------------------------------------------------
 
 class ProviaBreakpoints {
@@ -25,8 +26,8 @@ class ProviaBreakpoints {
 double minTapHeight(BuildContext context, double desktop, double mobile) =>
     ProviaBreakpoints.isDesktop(context) ? desktop : mobile;
 
-/// Sayfa gövdesi: içeriği en fazla [maxWidth] genişlikte ortalar,
-/// kaydırma çubuğu ise ekranın kenarında kalır.
+/// Sayfa gövdesi: içerik en fazla [maxWidth] genişlikte ortalanır,
+/// kaydırma çubuğu ekranın kenarında kalır.
 class ProviaPageView extends StatelessWidget {
   final List<Widget> children;
   final double maxWidth;
@@ -34,7 +35,7 @@ class ProviaPageView extends StatelessWidget {
   const ProviaPageView({
     super.key,
     required this.children,
-    this.maxWidth = 1160,
+    this.maxWidth = 1040,
   });
 
   @override
@@ -50,7 +51,7 @@ class ProviaPageView extends StatelessWidget {
         return ListView(
           padding: EdgeInsets.fromLTRB(
             horizontal,
-            wide ? 28 : 16,
+            wide ? 24 : 16,
             horizontal,
             32,
           ),
@@ -131,11 +132,11 @@ class ProviaGrid extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Kartlar
+// Yüzeyler
 // ---------------------------------------------------------------------------
 
-/// İnce kenarlıklı, 12px köşeli temel kart. [onTap] verilirse fareyle
-/// üzerine gelince kenarlık vurgulanır.
+/// 1px kenarlıklı, 8px köşeli temel yüzey. [onTap] verilirse hover'da
+/// kenarlık bir ton açılır (parlama yok).
 class ProviaCard extends StatefulWidget {
   final Widget child;
   final EdgeInsetsGeometry padding;
@@ -161,11 +162,9 @@ class _ProviaCardState extends State<ProviaCard> {
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = widget.highlight
-        ? ProviaTheme.borderHighlight
-        : (_hovered && widget.onTap != null
-              ? ProviaTheme.borderStrong
-              : ProviaTheme.borderDark);
+    final borderColor = widget.highlight || (_hovered && widget.onTap != null)
+        ? ProviaTheme.borderStrong
+        : ProviaTheme.borderDark;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _hovered = true),
@@ -173,7 +172,7 @@ class _ProviaCardState extends State<ProviaCard> {
       child: AnimatedContainer(
         duration: MediaQuery.of(context).disableAnimations
             ? Duration.zero
-            : const Duration(milliseconds: 180),
+            : const Duration(milliseconds: 150),
         curve: Curves.easeOut,
         decoration: BoxDecoration(
           color: widget.color ?? ProviaTheme.surfaceDark,
@@ -193,66 +192,75 @@ class _ProviaCardState extends State<ProviaCard> {
   }
 }
 
-/// İkon (yumuşak renkli kare içinde) + monospace büyük değer + soluk etiket.
-class MetricStatCard extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String label;
-  final String value;
-  final String? caption;
+/// Tek kenarlıklı panel: isteğe bağlı başlık satırı + 1px ayraçlı satırlar.
+/// Liste öğelerini ayrı kartlara bölmek yerine bunu kullan.
+class ProviaPanel extends StatelessWidget {
+  final String? title;
+  final String? subtitle;
+  final Widget? trailing;
+  final List<Widget> children;
+  final bool dividers;
 
-  const MetricStatCard({
+  const ProviaPanel({
     super.key,
-    required this.icon,
-    required this.color,
-    required this.label,
-    required this.value,
-    this.caption,
+    this.title,
+    this.subtitle,
+    this.trailing,
+    required this.children,
+    this.dividers = true,
   });
 
   @override
   Widget build(BuildContext context) {
-    return ProviaCard(
-      padding: const EdgeInsets.all(14),
+    return Container(
+      decoration: BoxDecoration(
+        color: ProviaTheme.surfaceDark,
+        borderRadius: BorderRadius.circular(ProviaTheme.radius),
+        border: Border.all(color: ProviaTheme.borderDark),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              IconBox(icon: icon, color: color),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: ProviaTheme.textMuted,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w500,
+          if (title != null) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 12, 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          title!,
+                          style: const TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.1,
+                          ),
+                        ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle!,
+                            style: const TextStyle(
+                              color: ProviaTheme.textSubtle,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: ProviaTheme.mono(size: 22, weight: FontWeight.w700),
-          ),
-          if (caption != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              caption!,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                color: ProviaTheme.textSubtle,
-                fontSize: 11,
+                  ?trailing,
+                ],
               ),
             ),
+            const Divider(),
+          ],
+          for (var i = 0; i < children.length; i++) ...[
+            if (i > 0 && dividers) const Divider(),
+            children[i],
           ],
         ],
       ),
@@ -260,7 +268,116 @@ class MetricStatCard extends StatelessWidget {
   }
 }
 
-/// Yumuşak renkli yuvarlatılmış kare içinde ikon.
+class MetricItem {
+  final String label;
+  final String value;
+  final String? caption;
+  final IconData? icon;
+  final Color? valueColor;
+
+  const MetricItem({
+    required this.label,
+    required this.value,
+    this.caption,
+    this.icon,
+    this.valueColor,
+  });
+}
+
+/// Tek kenarlıklı metrik şeridi: genişte 4 sütun, dar ekranda 2x2;
+/// sütunlar 1px ayraçla bölünür.
+class MetricStrip extends StatelessWidget {
+  final List<MetricItem> items;
+
+  const MetricStrip({super.key, required this.items});
+
+  Widget _cell(MetricItem item) => Padding(
+    padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+    child: Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                item.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: ProviaTheme.textMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+            if (item.icon != null)
+              Icon(item.icon, size: 14, color: ProviaTheme.textSubtle),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(
+          item.value,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: ProviaTheme.mono(
+            size: 22,
+            weight: FontWeight.w600,
+            color: item.valueColor ?? ProviaTheme.textPrimary,
+          ),
+        ),
+        if (item.caption != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            item.caption!,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: ProviaTheme.textSubtle, fontSize: 11),
+          ),
+        ],
+      ],
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: ProviaTheme.surfaceDark,
+        borderRadius: BorderRadius.circular(ProviaTheme.radius),
+        border: Border.all(color: ProviaTheme.borderDark),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = constraints.maxWidth >= 600 ? items.length : 2;
+          final rows = <Widget>[];
+          for (var start = 0; start < items.length; start += columns) {
+            if (rows.isNotEmpty) rows.add(const Divider());
+            rows.add(
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var c = 0; c < columns; c++) ...[
+                      if (c > 0) const VerticalDivider(width: 1),
+                      Expanded(
+                        child: start + c < items.length
+                            ? _cell(items[start + c])
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            );
+          }
+          return Column(children: rows);
+        },
+      ),
+    );
+  }
+}
+
+/// Nötr ikon kutusu (dekoratif; renk yalnızca gerekirse).
 class IconBox extends StatelessWidget {
   final IconData icon;
   final Color color;
@@ -269,8 +386,8 @@ class IconBox extends StatelessWidget {
   const IconBox({
     super.key,
     required this.icon,
-    required this.color,
-    this.size = 30,
+    this.color = ProviaTheme.textMuted,
+    this.size = 28,
   });
 
   @override
@@ -280,9 +397,9 @@ class IconBox extends StatelessWidget {
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.25)),
+        color: ProviaTheme.surfaceElevated,
+        borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
+        border: Border.all(color: ProviaTheme.borderDark),
       ),
       child: Icon(icon, size: size * 0.5, color: color),
     );
@@ -290,10 +407,10 @@ class IconBox extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Etiketler
+// Etiketler ve metin
 // ---------------------------------------------------------------------------
 
-/// Renkli, kompakt durum etiketi (ör. "Şirket Destekli", "Orta", "Doğrulandı").
+/// Küçük durum etiketi. Az kullan: çoğu meta bilgi düz metin olmalı.
 class StatusBadge extends StatelessWidget {
   final String label;
   final Color color;
@@ -311,17 +428,17 @@ class StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        color: color.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
-            Icon(icon, size: 12, color: color),
+            Icon(icon, size: 11, color: color),
             const SizedBox(width: 4),
           ],
           Flexible(
@@ -334,7 +451,7 @@ class StatusBadge extends StatelessWidget {
                   : TextStyle(
                       color: color,
                       fontSize: 11,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w500,
                     ),
             ),
           ),
@@ -344,7 +461,7 @@ class StatusBadge extends StatelessWidget {
   }
 }
 
-/// Nötr teknoloji etiketi (ör. "Flutter", "PostgreSQL").
+/// Sade teknoloji etiketi (monospace, dolgusuz).
 class TechChip extends StatelessWidget {
   final String label;
 
@@ -353,26 +470,42 @@ class TechChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: ProviaTheme.surfaceElevated,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
         border: Border.all(color: ProviaTheme.borderDark),
       ),
       child: Text(
         label,
-        style: ProviaTheme.mono(
-          size: 11,
-          weight: FontWeight.w500,
-          color: ProviaTheme.textMuted,
-        ),
+        style: ProviaTheme.mono(size: 11, color: ProviaTheme.textMuted),
       ),
     );
   }
 }
 
+/// "a · b · c" biçiminde sade meta satırı.
+String metaLine(Iterable<String> parts) =>
+    parts.where((p) => p.trim().isNotEmpty).join('  ·  ');
+
+/// Durum noktası (ör. Kanban sütun başlıkları).
+class StatusDot extends StatelessWidget {
+  final Color color;
+  final double size;
+
+  const StatusDot(this.color, {super.key, this.size = 7});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    );
+  }
+}
+
 // ---------------------------------------------------------------------------
-// Avatarlar
+// Avatarlar (nötr)
 // ---------------------------------------------------------------------------
 
 /// "Selin Demir" -> "SD". "(Sen)" eki yok sayılır.
@@ -387,20 +520,6 @@ String initialsOf(String name) {
   return parts.take(2).map((p) => p.characters.first).join().toUpperCase();
 }
 
-const _avatarColors = [
-  Color(0xFFF97316),
-  Color(0xFF38BDF8),
-  Color(0xFF10B981),
-  Color(0xFFFBBF24),
-  Color(0xFFF472B6),
-  Color(0xFFA78BFA),
-];
-
-/// İsimden sabit bir avatar rengi üretir.
-Color avatarColorFor(String name) =>
-    _avatarColors[name.codeUnits.fold(0, (a, b) => a + b) %
-        _avatarColors.length];
-
 class ProviaAvatar extends StatelessWidget {
   final String name;
   final double size;
@@ -409,34 +528,31 @@ class ProviaAvatar extends StatelessWidget {
   const ProviaAvatar({
     super.key,
     required this.name,
-    this.size = 32,
+    this.size = 28,
     this.borderColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    final color = avatarColorFor(name);
     return Container(
       width: size,
       height: size,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        color: Color.alphaBlend(
-          color.withValues(alpha: 0.22),
-          ProviaTheme.surfaceDark,
-        ),
+        color: ProviaTheme.surfaceElevated,
         shape: BoxShape.circle,
         border: Border.all(
-          color: borderColor ?? color.withValues(alpha: 0.45),
+          color: borderColor ?? ProviaTheme.borderStrong,
           width: borderColor != null ? 2 : 1,
         ),
       ),
       child: Text(
         initialsOf(name),
         style: TextStyle(
-          color: Color.lerp(color, Colors.white, 0.35),
+          color: ProviaTheme.textMuted,
           fontSize: size * 0.36,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.2,
         ),
       ),
     );
@@ -452,7 +568,7 @@ class AvatarStack extends StatelessWidget {
   const AvatarStack({
     super.key,
     required this.names,
-    this.size = 28,
+    this.size = 24,
     this.max = 4,
   });
 
@@ -460,7 +576,7 @@ class AvatarStack extends StatelessWidget {
   Widget build(BuildContext context) {
     final visible = names.take(max).toList();
     final extra = names.length - visible.length;
-    final step = size * 0.68;
+    final step = size * 0.7;
     final count = visible.length + (extra > 0 ? 1 : 0);
 
     return Tooltip(
@@ -511,7 +627,7 @@ class AvatarStack extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Başlıklar, ilerleme, segment kontrol
+// Başlıklar, ilerleme, sekmeler
 // ---------------------------------------------------------------------------
 
 /// Bölüm başlığı + isteğe bağlı alt başlık + sağda bağlantı.
@@ -540,13 +656,13 @@ class SectionHeader extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(title, style: ProviaTheme.heading(size: 15)),
+              Text(title, style: ProviaTheme.heading(size: 14)),
               if (subtitle != null) ...[
-                const SizedBox(height: 3),
+                const SizedBox(height: 2),
                 Text(
                   subtitle!,
                   style: const TextStyle(
-                    color: ProviaTheme.textMuted,
+                    color: ProviaTheme.textSubtle,
                     fontSize: 12,
                   ),
                 ),
@@ -556,14 +672,7 @@ class SectionHeader extends StatelessWidget {
         ),
         ?trailing,
         if (actionLabel != null)
-          TextButton(
-            onPressed: onAction,
-            style: TextButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 8),
-              minimumSize: const Size(0, 32),
-            ),
-            child: Text(actionLabel!),
-          ),
+          TextButton(onPressed: onAction, child: Text(actionLabel!)),
       ],
     );
   }
@@ -579,7 +688,7 @@ class ProviaProgressBar extends StatelessWidget {
     super.key,
     required this.value,
     this.color = ProviaTheme.primary,
-    this.height = 6,
+    this.height = 4,
   });
 
   @override
@@ -604,7 +713,7 @@ class ProviaSegment<T> {
   const ProviaSegment(this.value, this.label, {this.count});
 }
 
-/// Keskin, kompakt segment kontrol (ör. Giriş Yap / Kayıt Ol, Aylık / Yıllık).
+/// Kompakt segment kontrol (ör. Giriş Yap / Kayıt Ol, Aylık / Yıllık).
 class ProviaSegmented<T> extends StatelessWidget {
   final List<ProviaSegment<T>> segments;
   final T value;
@@ -625,19 +734,18 @@ class ProviaSegmented<T> extends StatelessWidget {
       final selected = s.value == value;
       final child = Material(
         color: selected ? ProviaTheme.surfaceElevated : Colors.transparent,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(5),
         child: InkWell(
-          borderRadius: BorderRadius.circular(6),
+          borderRadius: BorderRadius.circular(5),
           onTap: () => onChanged(s.value),
           child: Container(
-            // Mobilde dokunma hedefi >= 44px (dış dolgu + kenarlık dahil).
             constraints: BoxConstraints(
-              minHeight: minTapHeight(context, 30, 38),
+              minHeight: minTapHeight(context, 28, 38),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: selected
                 ? BoxDecoration(
-                    borderRadius: BorderRadius.circular(6),
+                    borderRadius: BorderRadius.circular(5),
                     border: Border.all(color: ProviaTheme.borderStrong),
                   )
                 : null,
@@ -652,7 +760,7 @@ class ProviaSegmented<T> extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w500,
                       color: selected
                           ? ProviaTheme.textPrimary
                           : ProviaTheme.textMuted,
@@ -665,9 +773,7 @@ class ProviaSegmented<T> extends StatelessWidget {
                     '${s.count}',
                     style: ProviaTheme.mono(
                       size: 11,
-                      color: selected
-                          ? ProviaTheme.primary
-                          : ProviaTheme.textSubtle,
+                      color: ProviaTheme.textSubtle,
                     ),
                   ),
                 ],
@@ -680,10 +786,10 @@ class ProviaSegmented<T> extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: ProviaTheme.surfaceDark,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(ProviaTheme.radius),
         border: Border.all(color: ProviaTheme.borderDark),
       ),
       child: Row(
@@ -699,7 +805,84 @@ class ProviaSegmented<T> extends StatelessWidget {
   }
 }
 
-/// Seçilebilir filtre hapı (Keşfet filtreleri vb.).
+/// Metin + alt çizgi sekmeleri (filtreler, Kanban sekmeleri).
+class UnderlineTabs<T> extends StatelessWidget {
+  final List<ProviaSegment<T>> tabs;
+  final T value;
+  final ValueChanged<T> onChanged;
+
+  const UnderlineTabs({
+    super.key,
+    required this.tabs,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: const BoxDecoration(
+        border: Border(bottom: BorderSide(color: ProviaTheme.borderDark)),
+      ),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            for (final t in tabs)
+              InkWell(
+                onTap: () => onChanged(t.value),
+                child: Container(
+                  constraints: BoxConstraints(
+                    minHeight: minTapHeight(context, 38, 44),
+                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    border: Border(
+                      bottom: BorderSide(
+                        color: t.value == value
+                            ? ProviaTheme.textPrimary
+                            : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        t.label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: t.value == value
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: t.value == value
+                              ? ProviaTheme.textPrimary
+                              : ProviaTheme.textSubtle,
+                        ),
+                      ),
+                      if (t.count != null) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          '${t.count}',
+                          style: ProviaTheme.mono(
+                            size: 11,
+                            color: ProviaTheme.textSubtle,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Seçilebilir filtre hapı (eski ekran uyumluluğu için).
 class FilterPill extends StatelessWidget {
   final String label;
   final bool selected;
@@ -715,28 +898,24 @@ class FilterPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected
-          ? ProviaTheme.primary.withValues(alpha: 0.16)
-          : ProviaTheme.surfaceDark,
+      color: selected ? ProviaTheme.surfaceElevated : Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
         side: BorderSide(
-          color: selected
-              ? ProviaTheme.borderHighlight
-              : ProviaTheme.borderDark,
+          color: selected ? ProviaTheme.borderStrong : ProviaTheme.borderDark,
         ),
       ),
       child: InkWell(
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
         onTap: onTap,
         child: Container(
-          constraints: BoxConstraints(minHeight: minTapHeight(context, 34, 44)),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          constraints: BoxConstraints(minHeight: minTapHeight(context, 32, 44)),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           child: Text(
             label,
             style: TextStyle(
               fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w500,
               color: selected ? ProviaTheme.textPrimary : ProviaTheme.textMuted,
             ),
           ),
@@ -807,27 +986,26 @@ class ProviaSelect<T> extends StatelessWidget {
         for (final o in options)
           PopupMenuItem<T>(
             value: o.$1,
+            height: 36,
             child: Row(
               children: [
                 Expanded(
                   child: Text(o.$2, style: const TextStyle(fontSize: 13)),
                 ),
                 if (o.$1 == value)
-                  const Icon(Icons.check, size: 16, color: ProviaTheme.primary),
+                  const Icon(Icons.check, size: 15, color: ProviaTheme.primary),
               ],
             ),
           ),
       ],
       child: Container(
-        constraints: const BoxConstraints(minHeight: 46),
-        padding: const EdgeInsets.symmetric(horizontal: 14),
+        constraints: const BoxConstraints(minHeight: 40),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         decoration: BoxDecoration(
-          color: ProviaTheme.surfaceElevated,
-          borderRadius: BorderRadius.circular(10),
+          color: ProviaTheme.surfaceDark,
+          borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
           border: Border.all(
-            color: active
-                ? ProviaTheme.borderHighlight
-                : ProviaTheme.borderDark,
+            color: active ? ProviaTheme.borderStrong : ProviaTheme.borderDark,
           ),
         ),
         child: Row(
@@ -838,15 +1016,13 @@ class ProviaSelect<T> extends StatelessWidget {
                   children: [
                     TextSpan(
                       text: '$label: ',
-                      style: const TextStyle(color: ProviaTheme.textMuted),
+                      style: const TextStyle(color: ProviaTheme.textSubtle),
                     ),
                     TextSpan(
                       text: current,
-                      style: TextStyle(
-                        color: active
-                            ? ProviaTheme.primary
-                            : ProviaTheme.textPrimary,
-                        fontWeight: FontWeight.w600,
+                      style: const TextStyle(
+                        color: ProviaTheme.textPrimary,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
@@ -856,11 +1032,11 @@ class ProviaSelect<T> extends StatelessWidget {
                 style: const TextStyle(fontSize: 13),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: 6),
             const Icon(
               Icons.expand_more,
-              size: 18,
-              color: ProviaTheme.textMuted,
+              size: 16,
+              color: ProviaTheme.textSubtle,
             ),
           ],
         ),
