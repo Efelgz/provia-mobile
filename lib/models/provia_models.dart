@@ -64,3 +64,32 @@ class LeaderboardUser {
     required this.completedProjects,
   });
 }
+
+/// Kullanıcının oluşturduğu takım (Takımlar modülü).
+class CreatedTeam {
+  final String id;
+  final String name;
+  final String projectId;
+  final List<String> openRoles;
+
+  const CreatedTeam({
+    required this.id,
+    required this.name,
+    required this.projectId,
+    required this.openRoles,
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'projectId': projectId,
+    'openRoles': openRoles,
+  };
+
+  factory CreatedTeam.fromJson(Map<String, dynamic> json) => CreatedTeam(
+    id: json['id'] as String,
+    name: json['name'] as String,
+    projectId: json['projectId'] as String,
+    openRoles: List<String>.from(json['openRoles'] as List? ?? const []),
+  );
+}

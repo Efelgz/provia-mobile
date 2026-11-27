@@ -1,6 +1,8 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import '../theme/app_theme.dart';
 
 /// PROVIA ortak arayüz parçaları (Kişi 1 + Kişi 2).
@@ -93,7 +95,7 @@ class ProviaGrid extends StatelessWidget {
               for (var i = 0; i < children.length; i++) ...[
                 if (i > 0) SizedBox(height: spacing),
                 // Kart içinde Spacer kullanılabilsin diye yükseklik sınırlanır.
-                IntrinsicHeight(child: children[i]),
+                _SlackIntrinsicHeight(child: children[i]),
               ],
             ],
           );
@@ -114,7 +116,7 @@ class ProviaGrid extends StatelessWidget {
           }
           if (rows.isNotEmpty) rows.add(SizedBox(height: spacing));
           rows.add(
-            IntrinsicHeight(
+            _SlackIntrinsicHeight(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: rowItems,
@@ -353,7 +355,7 @@ class MetricStrip extends StatelessWidget {
           for (var start = 0; start < items.length; start += columns) {
             if (rows.isNotEmpty) rows.add(const Divider());
             rows.add(
-              IntrinsicHeight(
+              _SlackIntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -1042,5 +1044,161 @@ class ProviaSelect<T> extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Geri alınabilir aksiyon butonu (davet / başvuru)
+// ---------------------------------------------------------------------------
+
+/// Üç durumlu buton:
+/// 1) [label] (ör. "Davet Et") → dokununca [onActivate]
+/// 2) [activeLabel] ✓ (ör. "Davet gönderildi") → tekrar dokununca [onUndo]
+/// 3) kısa süre [undoneLabel] (ör. "Davet iptal edildi"), sonra 1'e döner.
+class ToggleActionButton extends StatefulWidget {
+  final bool active;
+  final String label;
+  final String activeLabel;
+  final String undoneLabel;
+  final VoidCallback onActivate;
+  final VoidCallback onUndo;
+  final bool primary;
+  final IconData? icon;
+
+  const ToggleActionButton({
+    super.key,
+    required this.active,
+    required this.label,
+    required this.activeLabel,
+    required this.undoneLabel,
+    required this.onActivate,
+    required this.onUndo,
+    this.primary = false,
+    this.icon,
+  });
+
+  @override
+  State<ToggleActionButton> createState() => _ToggleActionButtonState();
+}
+
+class _ToggleActionButtonState extends State<ToggleActionButton> {
+  static const _flashDuration = Duration(milliseconds: 1600);
+
+  Timer? _timer;
+  bool _showUndone = false;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  void _undo() {
+    widget.onUndo();
+    _timer?.cancel();
+    setState(() => _showUndone = true);
+    _timer = Timer(_flashDuration, () {
+      if (mounted) setState(() => _showUndone = false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_showUndone && !widget.active) {
+      return OutlinedButton.icon(
+        onPressed: null,
+        icon: const Icon(Icons.close, size: 13),
+        label: Text(widget.undoneLabel),
+      );
+    }
+    if (widget.active) {
+      return Tooltip(
+        message: 'Geri almak için tıkla',
+        child: OutlinedButton.icon(
+          onPressed: _undo,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: ProviaTheme.accent,
+            side: BorderSide(color: ProviaTheme.accent.withValues(alpha: 0.4)),
+          ),
+          icon: const Icon(Icons.check, size: 14),
+          label: Text(widget.activeLabel),
+        ),
+      );
+    }
+    final icon = widget.icon;
+    if (widget.primary) {
+      return icon == null
+          ? ElevatedButton(
+              onPressed: widget.onActivate,
+              child: Text(widget.label),
+            )
+          : ElevatedButton.icon(
+              onPressed: widget.onActivate,
+              icon: Icon(icon, size: 13),
+              label: Text(widget.label),
+            );
+    }
+    return icon == null
+        ? OutlinedButton(
+            onPressed: widget.onActivate,
+            child: Text(widget.label),
+          )
+        : OutlinedButton.icon(
+            onPressed: widget.onActivate,
+            icon: Icon(icon, size: 13),
+            label: Text(widget.label),
+          );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Eşit yükseklik (güvenlik paylı)
+// ---------------------------------------------------------------------------
+
+/// IntrinsicHeight gibi çalışır ama ölçülen yüksekliğe küçük bir pay ekler.
+/// Debug modunda font yüklenirken metin ölçümü birkaç piksel düşük
+/// kalabiliyor; bu pay "BOTTOM OVERFLOWED BY 3 PIXELS" hatasını önler.
+class _SlackIntrinsicHeight extends SingleChildRenderObjectWidget {
+  static const double slack = 4;
+
+  const _SlackIntrinsicHeight({required Widget super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderSlackIntrinsicHeight(slack);
+}
+
+class _RenderSlackIntrinsicHeight extends RenderProxyBox {
+  _RenderSlackIntrinsicHeight(this._slack);
+
+  final double _slack;
+
+  double _height(double width) =>
+      (child?.getMaxIntrinsicHeight(width) ?? 0) + _slack;
+
+  @override
+  double computeMinIntrinsicHeight(double width) => _height(width);
+
+  @override
+  double computeMaxIntrinsicHeight(double width) => _height(width);
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final child = this.child;
+    if (child == null) return constraints.smallest;
+    final height = constraints.constrainHeight(_height(constraints.maxWidth));
+    return child.getDryLayout(constraints.tighten(height: height));
+  }
+
+  @override
+  void performLayout() {
+    final child = this.child;
+    if (child == null) {
+      size = constraints.smallest;
+      return;
+    }
+    final height = constraints.constrainHeight(_height(constraints.maxWidth));
+    child.layout(constraints.tighten(height: height), parentUsesSize: true);
+    size = constraints.constrain(child.size);
   }
 }
