@@ -32,6 +32,10 @@ class ProviaTask {
   String status; // 'Yapılacak', 'Devam Ediyor', 'Tamamlandı'
   final int xp;
 
+  /// Bu görevin XP'si verildi mi? Aynı görevden tekrar tekrar XP
+  /// kazanılmasını engeller.
+  bool xpAwarded;
+
   ProviaTask({
     required this.id,
     required this.title,
@@ -39,7 +43,8 @@ class ProviaTask {
     required this.role,
     required this.status,
     required this.xp,
-  });
+    bool? xpAwarded,
+  }) : xpAwarded = xpAwarded ?? status == 'Tamamlandı';
 }
 
 class LeaderboardUser {

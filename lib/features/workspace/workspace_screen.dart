@@ -2,23 +2,65 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/data/mock_data.dart';
+import '../../core/widgets/project_switcher.dart';
 import '../../models/provia_models.dart';
 
 class WorkspaceScreen extends StatefulWidget {
+  final ProviaProject project;
+  final List<ProviaProject> joinedProjects;
+  final ValueChanged<String> onSelectProject;
   final Function(int) onEarnXp;
 
-  const WorkspaceScreen({super.key, required this.onEarnXp});
+  const WorkspaceScreen({
+    super.key,
+    required this.project,
+    required this.joinedProjects,
+    required this.onSelectProject,
+    required this.onEarnXp,
+  });
 
   @override
   State<WorkspaceScreen> createState() => _WorkspaceScreenState();
 }
 
 class _WorkspaceScreenState extends State<WorkspaceScreen> {
-  final TextEditingController _repoController = TextEditingController(
-    text: 'https://github.com/Efelgz/kobi-satis-paneli',
-  );
+  final TextEditingController _repoController = TextEditingController();
   bool _isAnalyzing = false;
-  bool _showAiReport = false;
+
+  /// AI değerlendirmesi yapılmış projeler (XP yalnızca ilk teslimde verilir).
+  final Set<String> _evaluatedProjectIds = {};
+
+  bool get _showAiReport => _evaluatedProjectIds.contains(widget.project.id);
+
+  @override
+  void initState() {
+    super.initState();
+    _repoController.text = _demoRepoFor(widget.project.id);
+  }
+
+  @override
+  void didUpdateWidget(covariant WorkspaceScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.project.id != widget.project.id) {
+      _repoController.text = _demoRepoFor(widget.project.id);
+      _isAnalyzing = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _repoController.dispose();
+    super.dispose();
+  }
+
+  String _demoRepoFor(String projectId) =>
+      ProviaMockData.demoRepoUrls[projectId] ?? '';
+
+  void _showMessage(String text) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(text)));
+  }
 
   void _cycleTaskStatus(ProviaTask task) {
     setState(() {
@@ -26,10 +68,13 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         task.status = 'Devam Ediyor';
       } else if (task.status == 'Devam Ediyor') {
         task.status = 'Tamamlandı';
-        widget.onEarnXp(task.xp);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Görev tamamlandı! +${task.xp} XP kazandın.')),
-        );
+        if (!task.xpAwarded) {
+          task.xpAwarded = true;
+          widget.onEarnXp(task.xp);
+          _showMessage('Görev tamamlandı! +${task.xp} XP kazandın.');
+        } else {
+          _showMessage('Görev tekrar tamamlandı (XP daha önce verildi).');
+        }
       } else {
         task.status = 'Yapılacak';
       }
@@ -38,31 +83,53 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
 
   Future<void> _runSimulatedAiEvaluation() async {
     if (_repoController.text.trim().isEmpty) return;
+    final projectId = widget.project.id;
+    final firstSubmission = !_evaluatedProjectIds.contains(projectId);
     setState(() {
       _isAnalyzing = true;
-      _showAiReport = false;
+      _evaluatedProjectIds.remove(projectId);
     });
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
     setState(() {
       _isAnalyzing = false;
-      _showAiReport = true;
+      _evaluatedProjectIds.add(projectId);
     });
-    widget.onEarnXp(150);
+    if (firstSubmission) {
+      widget.onEarnXp(150);
+      _showMessage('Teslim değerlendirildi! +150 XP kazandın.');
+    } else {
+      _showMessage(
+        'Yeniden değerlendirildi (XP yalnızca ilk teslimde verilir).',
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final tasks = ProviaMockData.workspaceTasks;
+    final tasks = ProviaMockData.tasksFor(widget.project.id);
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
-          'KOBİ Aylık Satış Analiz Paneli',
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
+        if (widget.joinedProjects.length > 1) ...[
+          ProjectSwitcher(
+            projects: widget.joinedProjects,
+            activeProjectId: widget.project.id,
+            onSelect: widget.onSelectProject,
+          ),
+          const SizedBox(height: 16),
+        ],
+        Text(
+          widget.project.title,
+          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         ),
-        const SizedBox(height: 4),
+        const SizedBox(height: 2),
+        Text(
+          widget.project.company,
+          style: const TextStyle(color: ProviaTheme.primary, fontSize: 12),
+        ),
+        const SizedBox(height: 8),
         const Text(
           'Takım Görevleri (Durumu değiştirmek için göreve dokun)',
           style: TextStyle(color: ProviaTheme.textMuted, fontSize: 12),
