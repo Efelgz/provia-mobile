@@ -6,6 +6,7 @@ import 'core/theme/app_theme.dart';
 import 'core/data/mock_data.dart';
 import 'core/services/provia_storage.dart';
 import 'core/widgets/provia_components.dart';
+import 'core/widgets/provia_logo.dart';
 import 'models/provia_models.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
@@ -15,6 +16,9 @@ import 'features/workspace/workspace_screen.dart';
 import 'features/marketplace/marketplace_screen.dart';
 import 'features/leaderboard/leaderboard_screen.dart';
 import 'features/profile/profile_screen.dart';
+import 'features/teams/teams_screen.dart';
+import 'features/events/events_screen.dart';
+import 'features/company/company_screen.dart';
 
 void main() {
   runApp(const ProviaApp());
@@ -123,6 +127,12 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
   // AI değerlendirmesi yapılmış projeler (XP yalnızca ilk teslimde verilir).
   final Set<String> _evaluatedProjectIds = {};
 
+  // Takımlar ve Etkinlikler modülleri.
+  final Set<String> _appliedTeamIds = {};
+  final List<CreatedTeam> _createdTeams = [];
+  final Set<String> _registeredEventIds = {};
+  final Set<String> _awardedEventIds = {};
+
   List<ProviaProject> get _joinedProjects =>
       _joinedProjectIds.map(ProviaMockData.projectById).toList();
 
@@ -132,6 +142,9 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
     'Çalışma Alanı',
     'Liderlik Tablosu',
     'Portfolyo & Profil',
+    'Takımlar',
+    'Etkinlikler',
+    'Şirket Paneli',
   ];
 
   @override
@@ -169,6 +182,18 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
     _evaluatedProjectIds
       ..clear()
       ..addAll(progress.evaluatedProjectIds);
+    _appliedTeamIds
+      ..clear()
+      ..addAll(progress.appliedTeamIds);
+    _createdTeams
+      ..clear()
+      ..addAll(progress.createdTeams);
+    _registeredEventIds
+      ..clear()
+      ..addAll(progress.registeredEventIds);
+    _awardedEventIds
+      ..clear()
+      ..addAll(progress.awardedEventIds);
   }
 
   /// Her değişiklikten sonra ilerleme cihaza kaydedilir.
@@ -183,6 +208,10 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
           for (final task in tasks)
             task.id: TaskState(task.status, task.xpAwarded),
       },
+      appliedTeamIds: Set.of(_appliedTeamIds),
+      createdTeams: List.of(_createdTeams),
+      registeredEventIds: Set.of(_registeredEventIds),
+      awardedEventIds: Set.of(_awardedEventIds),
     );
     unawaited(ProviaStorage.saveProgress(widget.account, progress));
   }
@@ -209,6 +238,48 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
 
   void _markEvaluated(String projectId) =>
       _update(() => _evaluatedProjectIds.add(projectId));
+
+  void _applyToTeam(String teamId) =>
+      _update(() => _appliedTeamIds.add(teamId));
+
+  void _createTeam(CreatedTeam team) => _update(() => _createdTeams.add(team));
+
+  /// Etkinlik kaydı aç/kapat. XP yalnızca o etkinliğe ilk kayıtta verilir.
+  void _toggleEvent(String eventId, int xpReward) {
+    _update(() {
+      if (_registeredEventIds.remove(eventId)) return;
+      _registeredEventIds.add(eventId);
+      if (_awardedEventIds.add(eventId)) _userXp += xpReward;
+    });
+  }
+
+  /// Takımlar (5), Etkinlikler (6), Şirket Paneli (7) sayfaları.
+  Widget _modulePage(int index) => switch (index) {
+    5 => TeamsScreen(
+      joinedProjects: _joinedProjects,
+      appliedTeamIds: _appliedTeamIds,
+      createdTeams: _createdTeams,
+      onApply: _applyToTeam,
+      onCreateTeam: _createTeam,
+    ),
+    6 => EventsScreen(
+      registeredEventIds: _registeredEventIds,
+      onToggleRegistration: _toggleEvent,
+    ),
+    _ => const CompanyScreen(),
+  };
+
+  /// Mobilde alt menü 5 öğeyle sınırlı; diğer modüller ayrı sayfa açılır.
+  void _openModuleOnMobile(int index) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => Scaffold(
+          appBar: AppBar(title: Text(_titles[index])),
+          body: _modulePage(index),
+        ),
+      ),
+    );
+  }
 
   Future<void> _confirmReset() async {
     final confirmed = await showDialog<bool>(
@@ -249,16 +320,6 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
       );
   }
 
-  void _showSoon(String module) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('$module modülü yakında geliyor (yol haritası).'),
-        ),
-      );
-  }
-
   @override
   Widget build(BuildContext context) {
     final activeId = _activeProjectId;
@@ -291,6 +352,9 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
       ),
       LeaderboardScreen(userXp: _userXp),
       ProfileScreen(userXp: _userXp),
+      _modulePage(5),
+      _modulePage(6),
+      _modulePage(7),
     ];
 
     final body = IndexedStack(index: _currentIndex, children: pages);
@@ -304,7 +368,6 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
             _Sidebar(
               currentIndex: _currentIndex,
               onSelect: (i) => setState(() => _currentIndex = i),
-              onSoon: _showSoon,
               account: widget.account,
               userXp: _userXp,
               onReset: _confirmReset,
@@ -332,18 +395,20 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 16,
-        title: Row(
-          children: [
-            const _LogoMark(size: 22),
-            const SizedBox(width: 10),
-            Flexible(
-              child: Text(
-                _titles[_currentIndex],
-                overflow: TextOverflow.ellipsis,
+        title: _currentIndex == 0
+            ? const ProviaLogo(height: 24)
+            : Row(
+                children: [
+                  const _LogoMark(size: 22),
+                  const SizedBox(width: 10),
+                  Flexible(
+                    child: Text(
+                      _titles[_currentIndex],
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ],
-        ),
         actions: [
           _XpPill(xp: _userXp, compact: true),
           PopupMenuButton<String>(
@@ -352,6 +417,9 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
             onSelected: (value) {
               if (value == 'reset') _confirmReset();
               if (value == 'logout') widget.onSignOut();
+              if (value == 'teams') _openModuleOnMobile(5);
+              if (value == 'events') _openModuleOnMobile(6);
+              if (value == 'company') _openModuleOnMobile(7);
             },
             itemBuilder: (context) => [
               PopupMenuItem(
@@ -362,6 +430,25 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
                     color: ProviaTheme.textMuted,
                     fontSize: 12,
                   ),
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem(
+                value: 'teams',
+                child: _MenuRow(icon: LucideIcons.users, label: 'Takımlar'),
+              ),
+              const PopupMenuItem(
+                value: 'events',
+                child: _MenuRow(
+                  icon: LucideIcons.calendarDays,
+                  label: 'Etkinlikler',
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'company',
+                child: _MenuRow(
+                  icon: LucideIcons.building2,
+                  label: 'Şirket Paneli (Önizleme)',
                 ),
               ),
               const PopupMenuDivider(),
@@ -386,7 +473,8 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
           border: Border(top: BorderSide(color: ProviaTheme.borderDark)),
         ),
         child: NavigationBar(
-          selectedIndex: _currentIndex,
+          // Modül sayfaları (5+) masaüstünde açıksa mobil menüde Panel seçili.
+          selectedIndex: _currentIndex < 5 ? _currentIndex : 0,
           onDestinationSelected: (index) =>
               setState(() => _currentIndex = index),
           destinations: const [
@@ -441,11 +529,14 @@ const _desktopTitles = [
   'Proje Çalışma Alanı',
   'Liderlik Tablosu',
   'Profil & Portfolyo',
+  'Takımlar',
+  'Etkinlikler',
+  'Şirket Paneli',
 ];
 
 class _NavEntry {
-  /// Sayfa sırası; null ise modül henüz hazır değil.
-  final int? index;
+  /// IndexedStack içindeki sayfa sırası.
+  final int index;
   final IconData icon;
   final String label;
 
@@ -456,9 +547,9 @@ const _studentEntries = [
   _NavEntry(0, LucideIcons.layoutGrid, 'Genel Bakış'),
   _NavEntry(1, LucideIcons.compass, 'Projeleri Keşfet'),
   _NavEntry(2, LucideIcons.terminalSquare, 'Proje Çalışma Alanı'),
-  _NavEntry(null, LucideIcons.users, 'Takımlar'),
+  _NavEntry(5, LucideIcons.users, 'Takımlar'),
   _NavEntry(3, LucideIcons.trophy, 'Liderlik Tablosu'),
-  _NavEntry(null, LucideIcons.calendarDays, 'Etkinlikler'),
+  _NavEntry(6, LucideIcons.calendarDays, 'Etkinlikler'),
   _NavEntry(4, LucideIcons.userCircle, 'Profil & Portfolyo'),
 ];
 
@@ -468,26 +559,7 @@ class _LogoMark extends StatelessWidget {
   const _LogoMark({this.size = 24});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: size,
-      height: size,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: ProviaTheme.primary,
-        borderRadius: BorderRadius.circular(ProviaTheme.radiusSmall),
-      ),
-      child: Text(
-        'P',
-        style: TextStyle(
-          color: ProviaTheme.onPrimary,
-          fontWeight: FontWeight.w700,
-          fontSize: size * 0.55,
-          height: 1,
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => ProviaLogoMark(size: size);
 }
 
 /// "1450 XP · Sv. 4" — kılcal kenarlıklı, sade.
@@ -667,7 +739,6 @@ class _TopHeader extends StatelessWidget {
 class _Sidebar extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onSelect;
-  final ValueChanged<String> onSoon;
   final ProviaAccount account;
   final int userXp;
   final VoidCallback onReset;
@@ -676,7 +747,6 @@ class _Sidebar extends StatelessWidget {
   const _Sidebar({
     required this.currentIndex,
     required this.onSelect,
-    required this.onSoon,
     required this.account,
     required this.userXp,
     required this.onReset,
@@ -706,16 +776,7 @@ class _Sidebar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Row(
                 children: [
-                  const _LogoMark(),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'PROVIA',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.2,
-                    ),
-                  ),
+                  const ProviaLogo(height: 24),
                   const Spacer(),
                   Text(
                     'v1.0',
@@ -742,24 +803,19 @@ class _Sidebar extends StatelessWidget {
                     icon: entry.icon,
                     label: entry.label,
                     selected: entry.index == currentIndex,
-                    trailingText: entry.index == null ? 'Yakında' : null,
-                    muted: entry.index == null,
-                    onTap: () => entry.index == null
-                        ? onSoon(entry.label)
-                        : onSelect(entry.index!),
+                    onTap: () => onSelect(entry.index),
                   ),
                 const SizedBox(height: 20),
                 const Padding(
                   padding: EdgeInsets.fromLTRB(8, 0, 8, 6),
-                  child: Text('Gelecek modül', style: _sectionStyle),
+                  child: Text('Şirket', style: _sectionStyle),
                 ),
                 _SidebarItem(
                   icon: LucideIcons.building2,
                   label: 'Şirket Paneli',
-                  selected: false,
-                  muted: true,
+                  selected: currentIndex == 7,
                   trailingText: 'Önizleme',
-                  onTap: () => onSoon('Şirket Paneli'),
+                  onTap: () => onSelect(7),
                 ),
               ],
             ),

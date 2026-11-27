@@ -311,4 +311,131 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Nasıl Çalışır?'), findsOneWidget);
   });
+
+  testWidgets('Takımlar, Etkinlikler ve Şirket Paneli (masaüstü)', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await startApp(tester, key: const ValueKey('moduller-1'));
+    await demoLogin(tester);
+
+    // Takımlar: başvur + takım oluştur
+    await tester.tap(find.text('Takımlar').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Başvur').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Başvuruldu'), findsOneWidget);
+    await waitSnackBar(tester);
+
+    await tester.tap(find.text('Takım Oluştur').first);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'Kod Kartalları');
+    await tester.tap(find.text('Backend').last);
+    await tester.tap(find.text('Oluştur'));
+    await tester.pumpAndSettle();
+    expect(find.text('Kod Kartalları'), findsOneWidget);
+    await waitSnackBar(tester);
+
+    // Etkinlikler: kayıt +15 XP, iptal + tekrar kayıt XP vermez, dolu buton
+    await tester.tap(find.text('Etkinlikler').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Dolu'), findsOneWidget);
+    await tester.tap(find.text('Kayıt Ol').first);
+    await tester.pumpAndSettle();
+    expect(find.text('1465 XP'), findsWidgets);
+    await tester.tap(find.text('Kayıtlısın'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Kayıt Ol').first);
+    await tester.pumpAndSettle();
+    expect(find.text('1465 XP'), findsWidgets);
+    await waitSnackBar(tester);
+
+    // Şirket Paneli: filtre + davet
+    await tester.tap(find.text('Şirket Paneli').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Yetenek Havuzu'), findsOneWidget);
+    await tester.tap(find.byTooltip('Min. AI skoru seç'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('90+').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Mülakata Davet Et'), findsNWidgets(2));
+    await tapVisible(tester, find.text('Mülakata Davet Et').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Davet edildi'), findsOneWidget);
+    await waitSnackBar(tester);
+
+    // Yeniden açılış: başvuru, takım ve etkinlik kaydı korunur
+    await startApp(tester, key: const ValueKey('moduller-2'));
+    await tester.tap(find.text('Takımlar').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Başvuruldu'), findsOneWidget);
+    await tester.tap(find.text('Etkinlikler').first);
+    await tester.pumpAndSettle();
+    expect(find.text('Kayıtlısın'), findsOneWidget);
+    expect(find.text('1465 XP'), findsWidgets);
+  });
+
+  testWidgets('Mobilde modüller menüden açılır', (tester) async {
+    usePhoneSize(tester, 360);
+    await startApp(tester);
+    await demoLogin(tester);
+
+    for (final label in [
+      'Takımlar',
+      'Etkinlikler',
+      'Şirket Paneli (Önizleme)',
+    ]) {
+      await tester.tap(find.byTooltip('Hesap menüsü'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+      expect(find.byType(BackButton), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+    }
+  });
+
+  testWidgets('Şirket Paneli: iş tanımı ve becerilerle görev yayınla', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await startApp(tester);
+    await demoLogin(tester);
+
+    await tester.tap(find.text('Şirket Paneli').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Görev Yayınla'));
+    await tester.pumpAndSettle();
+
+    // Boş gönderim: hatalar alanların yanında görünür.
+    await tester.tap(find.text('Yayınla'));
+    await tester.pumpAndSettle();
+    expect(find.text('Görev başlığı en az 5 karakter olmalı.'), findsOneWidget);
+    expect(find.text('En az bir rol seç.'), findsOneWidget);
+
+    final fields = find.descendant(
+      of: find.byType(Dialog),
+      matching: find.byType(TextField),
+    );
+    await tester.enterText(fields.at(0), 'Sipariş Takip Ekranı');
+    await tester.enterText(
+      fields.at(1),
+      'Siparişleri listeleyen mobil ekranı geliştirecek, durum filtresi '
+      'ekleyecek ve REST API ile bağlayacaksın.',
+    );
+    await tester.tap(find.text('Frontend').last);
+    await tester.tap(find.text('Backend').last);
+    await tester.tap(find.text('Flutter').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Yayınla'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.text('Sipariş Takip Ekranı'), findsOneWidget);
+    expect(find.text('Aranan: Frontend  ·  Backend'), findsOneWidget);
+  });
 }

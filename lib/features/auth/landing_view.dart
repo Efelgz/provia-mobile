@@ -3,6 +3,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/data/mock_data.dart';
 import '../../core/widgets/provia_components.dart';
+import '../../core/widgets/provia_logo.dart';
 import '../../models/provia_models.dart';
 
 /// Giriş yapılmamış kullanıcının gördüğü tanıtım sayfası.
@@ -131,33 +132,9 @@ class _Brand extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          width: 30,
-          height: 30,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: ProviaTheme.textPrimary,
-            borderRadius: BorderRadius.circular(8),
-          ),
-          child: const Text(
-            'P',
-            style: TextStyle(
-              color: ProviaTheme.onPrimary,
-              fontWeight: FontWeight.w700,
-              fontSize: 16,
-              height: 1,
-            ),
-          ),
-        ),
-        if (showName) ...[
-          const SizedBox(width: 10),
-          Text('PROVIA', style: ProviaTheme.heading(size: 15)),
-        ],
-      ],
-    );
+    return showName
+        ? const ProviaLogo(height: 28)
+        : const ProviaLogoMark(size: 28);
   }
 }
 

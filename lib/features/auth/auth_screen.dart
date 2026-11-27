@@ -4,6 +4,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/services/provia_storage.dart';
 import '../../core/widgets/provia_components.dart';
 import 'landing_view.dart';
+import '../../core/widgets/provia_logo.dart';
 
 /// Giriş / Kayıt ekranı. MVP'de hesaplar yalnızca cihazda tutulur;
 /// gerçek kimlik doğrulama Faz 3'te (Supabase Auth) eklenecek.
@@ -324,27 +325,10 @@ class _BrandHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Container(
-          width: 32,
-          height: 32,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: ProviaTheme.primary,
-            borderRadius: BorderRadius.circular(ProviaTheme.radius),
-          ),
-          child: const Text(
-            'P',
-            style: TextStyle(
-              color: ProviaTheme.onPrimary,
-              fontWeight: FontWeight.w700,
-              fontSize: 17,
-              height: 1,
-            ),
-          ),
-        ),
-        const SizedBox(height: 16),
+        const ProviaLogo(height: 44, showTagline: true),
+        const SizedBox(height: 24),
         Text(
-          'PROVIA hesabına giriş yap',
+          'Hesabına giriş yap',
           textAlign: TextAlign.center,
           style: ProviaTheme.heading(size: 20),
         ),

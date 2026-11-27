@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import '../theme/app_theme.dart';
 
 /// PROVIA ortak arayüz parçaları (Kişi 1 + Kişi 2).
@@ -93,7 +94,7 @@ class ProviaGrid extends StatelessWidget {
               for (var i = 0; i < children.length; i++) ...[
                 if (i > 0) SizedBox(height: spacing),
                 // Kart içinde Spacer kullanılabilsin diye yükseklik sınırlanır.
-                IntrinsicHeight(child: children[i]),
+                _SlackIntrinsicHeight(child: children[i]),
               ],
             ],
           );
@@ -114,7 +115,7 @@ class ProviaGrid extends StatelessWidget {
           }
           if (rows.isNotEmpty) rows.add(SizedBox(height: spacing));
           rows.add(
-            IntrinsicHeight(
+            _SlackIntrinsicHeight(
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: rowItems,
@@ -353,7 +354,7 @@ class MetricStrip extends StatelessWidget {
           for (var start = 0; start < items.length; start += columns) {
             if (rows.isNotEmpty) rows.add(const Divider());
             rows.add(
-              IntrinsicHeight(
+              _SlackIntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -1042,5 +1043,57 @@ class ProviaSelect<T> extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Eşit yükseklik (güvenlik paylı)
+// ---------------------------------------------------------------------------
+
+/// IntrinsicHeight gibi çalışır ama ölçülen yüksekliğe küçük bir pay ekler.
+/// Debug modunda font yüklenirken metin ölçümü birkaç piksel düşük
+/// kalabiliyor; bu pay "BOTTOM OVERFLOWED BY 3 PIXELS" hatasını önler.
+class _SlackIntrinsicHeight extends SingleChildRenderObjectWidget {
+  static const double slack = 4;
+
+  const _SlackIntrinsicHeight({required Widget super.child});
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderSlackIntrinsicHeight(slack);
+}
+
+class _RenderSlackIntrinsicHeight extends RenderProxyBox {
+  _RenderSlackIntrinsicHeight(this._slack);
+
+  final double _slack;
+
+  double _height(double width) =>
+      (child?.getMaxIntrinsicHeight(width) ?? 0) + _slack;
+
+  @override
+  double computeMinIntrinsicHeight(double width) => _height(width);
+
+  @override
+  double computeMaxIntrinsicHeight(double width) => _height(width);
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) {
+    final child = this.child;
+    if (child == null) return constraints.smallest;
+    final height = constraints.constrainHeight(_height(constraints.maxWidth));
+    return child.getDryLayout(constraints.tighten(height: height));
+  }
+
+  @override
+  void performLayout() {
+    final child = this.child;
+    if (child == null) {
+      size = constraints.smallest;
+      return;
+    }
+    final height = constraints.constrainHeight(_height(constraints.maxWidth));
+    child.layout(constraints.tighten(height: height), parentUsesSize: true);
+    size = constraints.constrain(child.size);
   }
 }

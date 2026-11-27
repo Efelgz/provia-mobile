@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/data/mock_data.dart';
+import '../../core/widgets/provia_components.dart';
 import '../../models/provia_models.dart';
 import 'profile_data.dart';
 
@@ -54,16 +55,11 @@ class ProfileView extends StatelessWidget {
 
   const ProfileView({super.key, required this.user, required this.isMe});
 
-  Future<void> _sharePortfolio(
-    BuildContext context,
-    StudentProfile profile,
-  ) async {
-    await Clipboard.setData(
-      ClipboardData(text: 'provia.app/portfolyo/${profile.githubHandle}'),
-    );
-    if (!context.mounted) return;
-    _showMessage(context, 'Portfolyo bağlantısı kopyalandı (demo bağlantı).');
-  }
+  /// GitHub kullanıcı adı; boşsa addan üretilir ("Ece Tunç" -> "ece-tunc").
+  static String handleFor(StudentProfile profile) =>
+      profile.githubHandle.isNotEmpty
+      ? profile.githubHandle
+      : foldForSearch(profile.name).trim().replaceAll(RegExp(r'\s+'), '-');
 
   void _showMessage(BuildContext context, String text) {
     ScaffoldMessenger.of(context)
@@ -71,449 +67,360 @@ class ProfileView extends StatelessWidget {
       ..showSnackBar(SnackBar(content: Text(text)));
   }
 
+  Future<void> _share(BuildContext context, String handle) async {
+    await Clipboard.setData(
+      ClipboardData(text: 'provia.app/portfolyo/$handle'),
+    );
+    if (!context.mounted) return;
+    _showMessage(context, 'Portfolyo bağlantısı kopyalandı (demo bağlantı).');
+  }
+
   @override
   Widget build(BuildContext context) {
     final profile = profileFor(user.name);
-    final int xpInLevel = user.xp % 400;
-    final subtitle = [
-      user.university,
-      if (profile.classYear.isNotEmpty) profile.classYear,
-    ].join(' • ');
+    final handle = handleFor(profile);
 
-    return ListView(
-      padding: const EdgeInsets.all(16),
+    final action = isMe
+        ? OutlinedButton.icon(
+            onPressed: () => _share(context, handle),
+            icon: const Icon(LucideIcons.share2, size: 13),
+            label: const Text('Portfolyoyu Paylaş'),
+          )
+        : ElevatedButton.icon(
+            onPressed: () => _showMessage(
+              context,
+              '${profile.name} adlı öğrenciye takım daveti gönderildi (demo).',
+            ),
+            icon: const Icon(LucideIcons.userPlus, size: 13),
+            label: const Text('Takımına Davet Et'),
+          );
+
+    return ProviaPageView(
+      maxWidth: 880,
       children: [
-        // Profil başlığı
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
+        _Header(
+          profile: profile,
+          user: user,
+          handle: handle,
+          isMe: isMe,
+          action: action,
+        ),
+        const SizedBox(height: 24),
+        const Divider(),
+        if (profile.skills.isNotEmpty) ...[
+          const SizedBox(height: 20),
+          const _Label('Yetenekler'),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: [for (final s in profile.skills) TechChip(s)],
+          ),
+        ],
+        if (profile.badges.isNotEmpty) ...[
+          const SizedBox(height: 24),
+          _Label(
+            'Rozetler',
+            trailing:
+                '${profile.badges.where((b) => b.earned).length}/${profile.badges.length}',
+          ),
+          const SizedBox(height: 10),
+          Wrap(
+            spacing: 16,
+            runSpacing: 10,
+            children: [for (final b in profile.badges) _BadgeItem(badge: b)],
+          ),
+        ],
+        const SizedBox(height: 28),
+        const _Label('Doğrulanmış Projeler'),
+        const SizedBox(height: 10),
+        if (profile.portfolio.isEmpty)
+          const Text(
+            'Henüz doğrulanmış proje yok. İlk projeni teslim ettiğinde burada '
+            'görünecek.',
+            style: TextStyle(color: ProviaTheme.textMuted, fontSize: 13),
+          )
+        else
+          ProviaPanel(
+            children: [
+              for (final item in profile.portfolio) _PortfolioRow(item: item),
+            ],
+          ),
+        const SizedBox(height: 10),
+        const Text(
+          'Katkı puanları MVP simülasyonudur; mentor incelemesine açıktır.',
+          style: TextStyle(color: ProviaTheme.textSubtle, fontSize: 11),
+        ),
+      ],
+    );
+  }
+}
+
+class _Label extends StatelessWidget {
+  final String text;
+  final String? trailing;
+
+  const _Label(this.text, {this.trailing});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text(
+          text,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
+        ),
+        if (trailing != null) ...[
+          const SizedBox(width: 8),
+          Text(
+            trailing!,
+            style: ProviaTheme.mono(size: 11, color: ProviaTheme.textSubtle),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _Header extends StatelessWidget {
+  final StudentProfile profile;
+  final LeaderboardUser user;
+  final String handle;
+  final bool isMe;
+  final Widget action;
+
+  const _Header({
+    required this.profile,
+    required this.user,
+    required this.handle,
+    required this.isMe,
+    required this.action,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final info = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                profile.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: ProviaTheme.heading(size: 20),
+              ),
+            ),
+            if (isMe) ...[
+              const SizedBox(width: 8),
+              const Text(
+                'Sen',
+                style: TextStyle(color: ProviaTheme.textSubtle, fontSize: 12),
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          metaLine([user.university, profile.classYear, '@$handle']),
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(color: ProviaTheme.textMuted, fontSize: 13),
+        ),
+        const SizedBox(height: 10),
+        Text.rich(
+          TextSpan(
+            children: [
+              _stat('#${user.rank}', 'sıra'),
+              _sep,
+              _stat('Sv. ${user.level}', 'seviye'),
+              _sep,
+              _stat('${user.completedProjects}', 'proje'),
+              _sep,
+              TextSpan(
+                text: '${user.xp} XP',
+                style: ProviaTheme.mono(size: 12, color: ProviaTheme.xp),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final avatar = ProviaAvatar(name: profile.name, size: 64);
+        if (constraints.maxWidth >= 560) {
+          return Row(
+            children: [
+              avatar,
+              const SizedBox(width: 18),
+              Expanded(child: info),
+              const SizedBox(width: 16),
+              action,
+            ],
+          );
+        }
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                avatar,
+                const SizedBox(width: 14),
+                Expanded(child: info),
+              ],
+            ),
+            const SizedBox(height: 14),
+            action,
+          ],
+        );
+      },
+    );
+  }
+
+  static TextSpan _stat(String value, String label) => TextSpan(
+    children: [
+      TextSpan(text: value, style: ProviaTheme.mono(size: 12)),
+      TextSpan(
+        text: ' $label',
+        style: const TextStyle(color: ProviaTheme.textSubtle, fontSize: 12),
+      ),
+    ],
+  );
+
+  static const _sep = TextSpan(
+    text: '   ·   ',
+    style: TextStyle(color: ProviaTheme.borderStrong, fontSize: 12),
+  );
+}
+
+class _BadgeItem extends StatelessWidget {
+  final ProfileBadge badge;
+
+  const _BadgeItem({required this.badge});
+
+  @override
+  Widget build(BuildContext context) {
+    final earned = badge.earned;
+    return Tooltip(
+      message: badge.description,
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            earned ? badge.icon : LucideIcons.lock,
+            size: 14,
+            color: earned ? ProviaTheme.textPrimary : ProviaTheme.textSubtle,
+          ),
+          const SizedBox(width: 6),
+          Text(
+            badge.title,
+            style: TextStyle(
+              fontSize: 13,
+              color: earned ? ProviaTheme.textPrimary : ProviaTheme.textSubtle,
+              decoration: earned ? null : TextDecoration.none,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PortfolioRow extends StatelessWidget {
+  final PortfolioItem item;
+
+  const _PortfolioRow({required this.item});
+
+  @override
+  Widget build(BuildContext context) {
+    final good = item.contributionScore >= 85;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
                   children: [
-                    CircleAvatar(
-                      radius: 28,
-                      backgroundColor: ProviaTheme.primary.withValues(
-                        alpha: 0.2,
-                      ),
+                    Flexible(
                       child: Text(
-                        profile.initials,
+                        item.title,
                         style: const TextStyle(
-                          color: ProviaTheme.primary,
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w500,
                         ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Flexible(
-                                child: Text(
-                                  profile.name,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.w800,
-                                  ),
-                                ),
-                              ),
-                              if (isMe) ...[
-                                const SizedBox(width: 8),
-                                const _SmallTag(
-                                  text: 'Sen',
-                                  color: ProviaTheme.primary,
-                                ),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            subtitle,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: ProviaTheme.textMuted,
-                              fontSize: 12,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            profile.focus,
-                            style: const TextStyle(
-                              color: ProviaTheme.textMuted,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _MiniStat(label: 'Sıra', value: '#${user.rank}'),
-                    ),
-                    Expanded(
-                      child: _MiniStat(label: 'Seviye', value: '${user.level}'),
-                    ),
-                    Expanded(
-                      child: _MiniStat(
-                        label: 'Proje',
-                        value: '${user.completedProjects}',
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'Toplam ${user.xp} XP',
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      '$xpInLevel / 400 XP',
-                      style: const TextStyle(
-                        color: ProviaTheme.accent,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                    const Icon(
+                      LucideIcons.badgeCheck,
+                      size: 14,
+                      color: ProviaTheme.accent,
+                    ),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'Doğrulandı',
+                      style: TextStyle(color: ProviaTheme.accent, fontSize: 12),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  metaLine([item.company, item.role]),
+                  style: const TextStyle(
+                    color: ProviaTheme.textSubtle,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 4,
+                  runSpacing: 4,
+                  children: [for (final t in item.technologies) TechChip(t)],
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text.rich(
+                TextSpan(
+                  children: [
+                    TextSpan(
+                      text: '${item.contributionScore}',
+                      style: ProviaTheme.mono(
+                        size: 16,
+                        weight: FontWeight.w600,
+                        color: good
+                            ? ProviaTheme.textPrimary
+                            : ProviaTheme.warning,
+                      ),
+                    ),
+                    TextSpan(
+                      text: '/100',
+                      style: ProviaTheme.mono(
+                        size: 11,
+                        color: ProviaTheme.textSubtle,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: LinearProgressIndicator(
-                    value: xpInLevel / 400,
-                    minHeight: 8,
-                    backgroundColor: ProviaTheme.borderDark,
-                    color: ProviaTheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: isMe
-                      ? OutlinedButton.icon(
-                          onPressed: () => _sharePortfolio(context, profile),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: ProviaTheme.textPrimary,
-                            side: const BorderSide(
-                              color: ProviaTheme.borderDark,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          icon: const Icon(LucideIcons.share2, size: 16),
-                          label: const Text('Portfolyoyu Paylaş'),
-                        )
-                      : ElevatedButton.icon(
-                          onPressed: () => _showMessage(
-                            context,
-                            '${profile.name} adlı öğrenciye takım daveti '
-                            'gönderildi (demo).',
-                          ),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: ProviaTheme.primary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                          ),
-                          icon: const Icon(LucideIcons.userPlus, size: 16),
-                          label: const Text('Takımına Davet Et'),
-                        ),
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // Rozetler
-        if (profile.badges.isNotEmpty) ...[
-          const _SectionTitle('Rozetler'),
-          const SizedBox(height: 10),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final itemWidth = (constraints.maxWidth - 10) / 2;
-              return Wrap(
-                spacing: 10,
-                runSpacing: 10,
-                children: [
-                  for (final badge in profile.badges)
-                    SizedBox(
-                      width: itemWidth,
-                      child: _BadgeCard(badge: badge),
-                    ),
-                ],
-              );
-            },
-          ),
-          const SizedBox(height: 20),
-        ],
-
-        // Yetenekler
-        if (profile.skills.isNotEmpty) ...[
-          const _SectionTitle('Yetenekler'),
-          const SizedBox(height: 10),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final skill in profile.skills)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: ProviaTheme.surfaceDark,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: ProviaTheme.borderDark),
-                  ),
-                  child: Text(skill, style: const TextStyle(fontSize: 12)),
-                ),
+              ),
+              const Text(
+                'katkı',
+                style: TextStyle(color: ProviaTheme.textSubtle, fontSize: 11),
+              ),
             ],
           ),
-          const SizedBox(height: 20),
         ],
-
-        // Doğrulanmış portfolyo
-        const _SectionTitle('Doğrulanmış Portfolyo'),
-        const SizedBox(height: 4),
-        const Text(
-          'Katkı puanları MVP simülasyonudur; mentor incelemesine açıktır.',
-          style: TextStyle(color: ProviaTheme.textMuted, fontSize: 12),
-        ),
-        const SizedBox(height: 10),
-        if (profile.portfolio.isEmpty)
-          const Text(
-            'Henüz doğrulanmış proje yok.',
-            style: TextStyle(color: ProviaTheme.textMuted),
-          ),
-        for (final item in profile.portfolio) _PortfolioCard(item: item),
-      ],
-    );
-  }
-}
-
-class _SectionTitle extends StatelessWidget {
-  final String text;
-
-  const _SectionTitle(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-    );
-  }
-}
-
-class _SmallTag extends StatelessWidget {
-  final String text;
-  final Color color;
-
-  const _SmallTag({required this.text, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(
-          color: color,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-        ),
-      ),
-    );
-  }
-}
-
-class _MiniStat extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _MiniStat({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Text(
-          value,
-          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          label,
-          style: const TextStyle(color: ProviaTheme.textMuted, fontSize: 12),
-        ),
-      ],
-    );
-  }
-}
-
-class _BadgeCard extends StatelessWidget {
-  final ProfileBadge badge;
-
-  const _BadgeCard({required this.badge});
-
-  @override
-  Widget build(BuildContext context) {
-    final color = badge.earned ? ProviaTheme.warning : ProviaTheme.textMuted;
-
-    return Opacity(
-      opacity: badge.earned ? 1 : 0.5,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: ProviaTheme.surfaceDark,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: ProviaTheme.borderDark),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              badge.earned ? badge.icon : LucideIcons.lock,
-              size: 20,
-              color: color,
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    badge.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  Text(
-                    badge.description,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: ProviaTheme.textMuted,
-                      fontSize: 11,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PortfolioCard extends StatelessWidget {
-  final PortfolioItem item;
-
-  const _PortfolioCard({required this.item});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    item.title,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                const Icon(
-                  LucideIcons.badgeCheck,
-                  size: 14,
-                  color: ProviaTheme.accent,
-                ),
-                const SizedBox(width: 4),
-                const Text(
-                  'Doğrulandı',
-                  style: TextStyle(
-                    color: ProviaTheme.accent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 4),
-            Text(
-              '${item.company} • ${item.role}',
-              style: const TextStyle(
-                color: ProviaTheme.textMuted,
-                fontSize: 12,
-              ),
-            ),
-            const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      for (final tech in item.technologies)
-                        Text(
-                          '#$tech',
-                          style: const TextStyle(
-                            color: ProviaTheme.primary,
-                            fontSize: 12,
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                Text(
-                  'Katkı: ${item.contributionScore}/100',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
       ),
     );
   }

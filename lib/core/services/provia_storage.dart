@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../models/provia_models.dart';
+
 /// Cihazda saklanan öğrenci hesabı (MVP: backend yok, şifre saklanmaz).
 class ProviaAccount {
   final String id;
@@ -59,12 +61,24 @@ class ProviaProgress {
   final Set<String> evaluatedProjectIds;
   final Map<String, TaskState> taskStates;
 
+  // Takımlar ve Etkinlikler modülleri
+  final Set<String> appliedTeamIds;
+  final List<CreatedTeam> createdTeams;
+  final Set<String> registeredEventIds;
+
+  /// XP'si verilmiş etkinlikler (kayıt iptal edip yeniden olunca tekrar XP yok).
+  final Set<String> awardedEventIds;
+
   const ProviaProgress({
     required this.xp,
     required this.joinedProjectIds,
     required this.activeProjectId,
     required this.evaluatedProjectIds,
     required this.taskStates,
+    this.appliedTeamIds = const {},
+    this.createdTeams = const [],
+    this.registeredEventIds = const {},
+    this.awardedEventIds = const {},
   });
 
   /// Demo hesabı hazır verilerle başlar; yeni hesaplar sıfırdan başlar.
@@ -93,6 +107,10 @@ class ProviaProgress {
       for (final e in taskStates.entries)
         e.key: {'status': e.value.status, 'xpAwarded': e.value.xpAwarded},
     },
+    'appliedTeamIds': appliedTeamIds.toList(),
+    'createdTeams': [for (final t in createdTeams) t.toJson()],
+    'registeredEventIds': registeredEventIds.toList(),
+    'awardedEventIds': awardedEventIds.toList(),
   };
 
   factory ProviaProgress.fromJson(Map<String, dynamic> json) {
@@ -113,6 +131,19 @@ class ProviaProgress {
             (e.value as Map<String, dynamic>)['xpAwarded'] as bool? ?? false,
           ),
       },
+      appliedTeamIds: Set<String>.from(
+        json['appliedTeamIds'] as List? ?? const [],
+      ),
+      createdTeams: [
+        for (final t in json['createdTeams'] as List? ?? const [])
+          CreatedTeam.fromJson(t as Map<String, dynamic>),
+      ],
+      registeredEventIds: Set<String>.from(
+        json['registeredEventIds'] as List? ?? const [],
+      ),
+      awardedEventIds: Set<String>.from(
+        json['awardedEventIds'] as List? ?? const [],
+      ),
     );
   }
 }
