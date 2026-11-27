@@ -3,10 +3,11 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'core/theme/app_theme.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/workspace/workspace_screen.dart';
-// SEVGİLİN KENDİ DOSYALARINI EKLEYİNCE AŞAĞIDAKİ 3 SATIRIN YORUMUNU KALDIRACAK:
-// import 'features/marketplace/marketplace_screen.dart';
-// import 'features/leaderboard/leaderboard_screen.dart';
-// import 'features/profile/profile_screen.dart';
+// Kişi 2'nin ekranları. main.dart'a dokunmadan yalnızca bu dosyaların
+// içeriğini değiştirir; constructor imzaları sabit kalır.
+import 'features/marketplace/marketplace_screen.dart';
+import 'features/leaderboard/leaderboard_screen.dart';
+import 'features/profile/profile_screen.dart';
 
 void main() {
   runApp(const ProviaApp());
@@ -57,22 +58,10 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
         onGoToWorkspace: () => setState(() => _currentIndex = 2),
         onGoToMarketplace: () => setState(() => _currentIndex = 1),
       ),
-      // SEVGİLİN BURAYI MarketplaceScreen(onJoinProject: () => _addXp(50)) YAPACAK:
-      const _PlaceholderScreen(
-        title: 'Proje Pazarı',
-        subtitle: 'Sevgilinin dalından gelecek',
-      ),
+      MarketplaceScreen(onJoinProject: () => _addXp(50)),
       WorkspaceScreen(onEarnXp: _addXp),
-      // SEVGİLİN BURAYI const LeaderboardScreen() YAPACAK:
-      const _PlaceholderScreen(
-        title: 'Liderlik Tablosu',
-        subtitle: 'Sevgilinin dalından gelecek',
-      ),
-      // SEVGİLİN BURAYI ProfileScreen(userXp: _userXp) YAPACAK:
-      const _PlaceholderScreen(
-        title: 'Öğrenci Profili',
-        subtitle: 'Sevgilinin dalından gelecek',
-      ),
+      LeaderboardScreen(userXp: _userXp),
+      ProfileScreen(userXp: _userXp),
     ];
 
     return Scaffold(
@@ -98,7 +87,12 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
               ),
             ),
             const SizedBox(width: 10),
-            Text(_titles[_currentIndex]),
+            Flexible(
+              child: Text(
+                _titles[_currentIndex],
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
           ],
         ),
         actions: [
@@ -169,30 +163,6 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-class _PlaceholderScreen extends StatelessWidget {
-  final String title;
-  final String subtitle;
-
-  const _PlaceholderScreen({required this.title, required this.subtitle});
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Text(
-            title,
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Text(subtitle, style: const TextStyle(color: ProviaTheme.textMuted)),
-        ],
       ),
     );
   }
