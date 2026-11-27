@@ -29,7 +29,10 @@ void main() {
   }
 
   Future<void> demoLogin(WidgetTester tester) async {
-    await tester.tap(find.text('Hızlı Demo Girişi'));
+    final button = find.text('Hızlı Demo Girişi');
+    await tester.ensureVisible(button);
+    await tester.pumpAndSettle();
+    await tester.tap(button);
     await tester.pumpAndSettle();
   }
 
@@ -38,6 +41,15 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(finder);
     await tester.pump();
+  }
+
+  /// Açık sayfayı en üste kaydırır.
+  Future<void> scrollToTop(WidgetTester tester) async {
+    final lists = find.byWidgetPredicate(
+      (w) => w is Scrollable && w.axisDirection == AxisDirection.down,
+    );
+    await tester.drag(lists.first, const Offset(0, 2000));
+    await tester.pumpAndSettle();
   }
 
   /// Açık bildirimin kapanmasını bekler (alttaki öğeleri örtmesin).
@@ -58,7 +70,7 @@ void main() {
     for (final label in ['Panel', 'Keşfet', 'Alanım', 'Sıralama', 'Profil']) {
       expect(find.text(label), findsOneWidget);
     }
-    expect(find.text('Hoş geldin, Deniz 👋'), findsOneWidget);
+    expect(find.text('Hoş geldin, Deniz'), findsOneWidget);
     expect(find.text('1450 XP'), findsWidgets);
   });
 
@@ -78,30 +90,42 @@ void main() {
       // İkinci projeye katıl: +50 XP ve aktif proje olur.
       await tapVisible(tester, find.text('Projeye Katıl').first);
       expect(find.text('1500 XP'), findsWidgets);
-      expect(find.text('Katıldın'), findsNWidgets(2));
+      expect(find.text('Katıldın'), findsWidgets);
       await waitSnackBar(tester);
 
       await tester.tap(find.text('Panel'));
       await tester.pumpAndSettle();
       expect(find.text('Projelerin (2)'), findsOneWidget);
-      expect(find.text('2 Proje'), findsOneWidget);
 
-      // Alanım: yeni projenin görevleri açılır, geri geçiş yapılabilir.
+      // Alanım (mobil): yeni projenin görevleri sekmelerde görünür.
       await tester.tap(find.text('Alanım'));
+      await tester.pumpAndSettle();
+      await tapVisible(tester, find.text('Yapılacak'));
       await tester.pumpAndSettle();
       expect(
         find.text('Bildirim izinleri ve odak modu ayar ekranı'),
         findsOneWidget,
       );
+      await scrollToTop(tester);
       await tester.tap(find.text('KOBİ Aylık Satış Analiz Paneli').first);
       await tester.pumpAndSettle();
 
-      // Görev XP'si yalnızca bir kez verilir.
+      // Görev XP'si yalnızca bir kez verilir; görev sütunlar arasında gezer.
       final task = find.text('Aylık satış grafiği ve filtreleme bileşeni');
+      Future<void> openTab(String label) async {
+        await tapVisible(tester, find.text(label));
+        await tester.pumpAndSettle();
+      }
+
+      await openTab('Devam');
       await tapVisible(tester, task); // Devam Ediyor -> Tamamlandı (+120)
       expect(find.text('1620 XP'), findsWidgets);
+      expect(task, findsNothing); // Bitti sütununa geçti
+      await openTab('Bitti');
       await tapVisible(tester, task); // -> Yapılacak
+      await openTab('Yapılacak');
       await tapVisible(tester, task); // -> Devam Ediyor
+      await openTab('Devam');
       await tapVisible(tester, task); // -> Tamamlandı (XP yok)
       expect(find.text('1620 XP'), findsWidgets);
     });
@@ -121,6 +145,8 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('KOBİ Aylık Satış Analiz Paneli').first);
     await tester.pumpAndSettle();
+    await tapVisible(tester, find.text('Devam'));
+    await tester.pumpAndSettle();
     await tapVisible(
       tester,
       find.text('Aylık satış grafiği ve filtreleme bileşeni'),
@@ -136,7 +162,12 @@ void main() {
 
     await tester.tap(find.text('Alanım'));
     await tester.pumpAndSettle();
-    expect(find.text('Tamamlandı'), findsNWidgets(3));
+    await tapVisible(tester, find.text('Bitti'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('Aylık satış grafiği ve filtreleme bileşeni'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('Kayıt olan yeni kullanıcı boş başlar, çıkış yapabilir', (
@@ -166,7 +197,7 @@ void main() {
     await tapVisible(tester, find.text('Hesap Oluştur'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Hoş geldin, Ece 👋'), findsOneWidget);
+    expect(find.text('Hoş geldin, Ece'), findsOneWidget);
     expect(find.text('0 XP'), findsWidgets);
     expect(find.text('Henüz bir projeye katılmadın'), findsOneWidget);
 
@@ -181,6 +212,9 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Hızlı Demo Girişi'), findsOneWidget);
 
+    // Tanıtım sayfasından giriş formunu aç.
+    await tester.tap(find.text('Giriş Yap'));
+    await tester.pumpAndSettle();
     await tester.enterText(
       find.widgetWithText(TextFormField, 'E-posta'),
       'ECE@ornek.com',
@@ -191,7 +225,7 @@ void main() {
     );
     await tapVisible(tester, find.text('Giriş Yap').last);
     await tester.pumpAndSettle();
-    expect(find.text('Hoş geldin, Ece 👋'), findsOneWidget);
+    expect(find.text('Hoş geldin, Ece'), findsOneWidget);
   });
 
   testWidgets('Sıralamada öğrenciye dokununca profili açılır', (tester) async {
@@ -201,7 +235,7 @@ void main() {
 
     await tester.tap(find.text('Sıralama'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Selin Demir'));
+    await tapVisible(tester, find.text('Selin Demir'));
     await tester.pumpAndSettle();
 
     expect(find.text('Öğrenci Profili'), findsOneWidget);
@@ -209,8 +243,63 @@ void main() {
 
     await tester.pageBack();
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Deniz Aydın (Sen)'));
+    await tapVisible(tester, find.text('Deniz Aydın (Sen)'));
     await tester.pumpAndSettle();
     expect(find.text('Profilin'), findsOneWidget);
+  });
+
+  testWidgets('Masaüstü: sol menü, KPI ızgarası ve 3 sütunlu pano', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await startApp(tester);
+    await demoLogin(tester);
+
+    // Alt menü yok, sol menü var.
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(find.text('ÖĞRENCİ PLATFORMU'), findsOneWidget);
+    expect(find.text('Şirket Paneli'), findsOneWidget);
+    expect(find.text('AI Kod Skoru'), findsOneWidget);
+    expect(find.text('Yaklaşan Teslimler'), findsOneWidget);
+
+    await tester.tap(find.text('Proje Çalışma Alanı'));
+    await tester.pumpAndSettle();
+    for (final column in ['Yapılacak', 'Devam Ediyor', 'Tamamlandı']) {
+      expect(find.text(column), findsOneWidget);
+    }
+
+    // AI değerlendirmesi: rapor ve katkı tablosu görünür.
+    await tapVisible(tester, find.text('Teslim Et ve Değerlendir'));
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
+    expect(find.text('Bireysel Katkı Tahmini'), findsOneWidget);
+    expect(find.text('MVP Simülasyonu'), findsOneWidget);
+    await waitSnackBar(tester);
+
+    await tester.tap(find.text('Genel Bakış'));
+    await tester.pumpAndSettle();
+    expect(find.text('/100 • MVP simülasyonu'), findsOneWidget);
+  });
+
+  testWidgets('Tanıtım sayfası: bölümler ve formlar arası geçiş', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1440, 1000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await startApp(tester);
+
+    expect(find.text('Nasıl Çalışır?'), findsOneWidget);
+    expect(find.text('Öne Çıkan Gerçek Dünya Projeleri'), findsOneWidget);
+    expect(find.text('Şirket Panelini Önizle'), findsOneWidget);
+
+    await tester.tap(find.text('Kayıt Ol'));
+    await tester.pumpAndSettle();
+    expect(find.text('Hesap Oluştur'), findsOneWidget);
+    await tester.tap(find.text('Ana Sayfa'));
+    await tester.pumpAndSettle();
+    expect(find.text('Nasıl Çalışır?'), findsOneWidget);
   });
 }

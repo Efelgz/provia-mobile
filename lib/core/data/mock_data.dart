@@ -54,6 +54,34 @@ class ProviaMockData {
       deadline: '10 Gün Kaldı',
       xpReward: 320,
     ),
+    ProviaProject(
+      id: 'p5',
+      title: 'Yerel İşletmeler İçin Mini E-Ticaret Altyapısı',
+      company: 'PROVIA Topluluk',
+      isCompanySponsored: false,
+      difficulty: 'Orta',
+      description:
+          'Mahalle fırınları, butik kahveciler ve yerel üreticiler için '
+          'komisyonsuz online sipariş, sepet ve teslimat saati seçimi sunan platform.',
+      technologies: ['Flutter', 'Node.js', 'PostgreSQL'],
+      openRoles: ['Mobile', 'Backend', 'UI/UX'],
+      deadline: '40 Gün Kaldı',
+      xpReward: 420,
+    ),
+    ProviaProject(
+      id: 'p6',
+      title: 'B2B Müşteri İlişkileri (CRM) & Görev Takip Sistemi',
+      company: 'FinFlow Bilişim',
+      isCompanySponsored: true,
+      difficulty: 'İleri',
+      description:
+          'Yazılım ajanslarının potansiyel müşterilerini, teklif aşamalarını ve '
+          'ekip içi görev dağılımını tek ekrandan yönetebileceği B2B CRM aracı.',
+      technologies: ['React', 'Java', 'PostgreSQL', 'Python'],
+      openRoles: ['Frontend', 'Backend', 'Data'],
+      deadline: '50 Gün Kaldı',
+      xpReward: 650,
+    ),
   ];
 
   // --- Oturum açan kullanıcı (giriş yapılınca main.dart tarafından ayarlanır) ---
@@ -70,6 +98,8 @@ class ProviaMockData {
     'p2': 'https://github.com/provia-demo/akilli-bildirim-filtresi',
     'p3': 'https://github.com/provia-demo/kampus-etkinlik-sistemi',
     'p4': 'https://github.com/provia-demo/klinik-randevu-platformu',
+    'p5': 'https://github.com/provia-demo/mini-e-ticaret',
+    'p6': 'https://github.com/provia-demo/b2b-crm',
   };
 
   /// Proje bazlı takım görevleri. Görev durumları oturum boyunca
@@ -192,10 +222,86 @@ class ProviaMockData {
         xp: 50,
       ),
     ],
+    'p5': [
+      ProviaTask(
+        id: 'p5-t1',
+        title: 'Ürün listeleme ve sepet ekranı',
+        assignee: 'Sen',
+        role: 'Mobile',
+        status: 'Yapılacak',
+        xp: 100,
+      ),
+      ProviaTask(
+        id: 'p5-t2',
+        title: 'Sipariş ve teslimat saati API uç noktaları',
+        assignee: 'Kaan Y.',
+        role: 'Backend',
+        status: 'Devam Ediyor',
+        xp: 110,
+      ),
+      ProviaTask(
+        id: 'p5-t3',
+        title: 'Esnaf paneli wireframe ve akış tasarımı',
+        assignee: 'Zeynep A.',
+        role: 'UI/UX',
+        status: 'Tamamlandı',
+        xp: 70,
+      ),
+    ],
+    'p6': [
+      ProviaTask(
+        id: 'p6-t1',
+        title: 'Müşteri ve teklif aşaması veri modeli',
+        assignee: 'Sen',
+        role: 'Backend',
+        status: 'Yapılacak',
+        xp: 130,
+      ),
+      ProviaTask(
+        id: 'p6-t2',
+        title: 'Kanban tabanlı teklif hattı arayüzü',
+        assignee: 'Selin D.',
+        role: 'Frontend',
+        status: 'Devam Ediyor',
+        xp: 120,
+      ),
+      ProviaTask(
+        id: 'p6-t3',
+        title: 'Haftalık satış raporu üretimi (Python)',
+        assignee: 'Burak K.',
+        role: 'Data',
+        status: 'Yapılacak',
+        xp: 90,
+      ),
+    ],
   };
 
   static List<ProviaTask> tasksFor(String projectId) =>
       projectTasks[projectId] ?? const [];
+
+  /// Görevlerdeki "Sen" yerine oturumdaki kullanıcının adını koyar.
+  static String displayName(String assignee) =>
+      assignee == 'Sen' ? currentUserName : assignee;
+
+  /// Projenin takım üyeleri (görev atamalarından, kullanıcı ilk sırada).
+  static List<String> teamFor(String projectId) {
+    final names = <String>{currentUserName};
+    for (final task in tasksFor(projectId)) {
+      names.add(displayName(task.assignee));
+    }
+    return names.toList();
+  }
+
+  /// Projenin tamamlanma oranı (0.0 - 1.0).
+  static double completionFor(String projectId) {
+    final tasks = tasksFor(projectId);
+    if (tasks.isEmpty) return 0;
+    return tasks.where((t) => t.status == 'Tamamlandı').length / tasks.length;
+  }
+
+  /// "12 Gün Kaldı" -> 12 (sıralama için).
+  static int daysLeft(ProviaProject project) =>
+      int.tryParse(project.deadline.split(' ').first) ?? 999;
 
   static const List<LeaderboardUser> monthlyLeaderboard = [
     LeaderboardUser(
