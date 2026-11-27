@@ -6,17 +6,30 @@ import '../../core/widgets/project_switcher.dart';
 import '../../models/provia_models.dart';
 
 class WorkspaceScreen extends StatefulWidget {
-  final ProviaProject project;
+  /// Açık proje. Kullanıcı henüz bir projeye katılmadıysa null.
+  final ProviaProject? project;
   final List<ProviaProject> joinedProjects;
+
+  /// AI değerlendirmesi yapılmış projeler (main.dart'ta saklanır).
+  final Set<String> evaluatedProjectIds;
   final ValueChanged<String> onSelectProject;
   final Function(int) onEarnXp;
+  final ValueChanged<String> onProjectEvaluated;
+
+  /// Görev durumu değişince çağrılır (kayıt için).
+  final VoidCallback onTasksChanged;
+  final VoidCallback onGoToMarketplace;
 
   const WorkspaceScreen({
     super.key,
     required this.project,
     required this.joinedProjects,
+    required this.evaluatedProjectIds,
     required this.onSelectProject,
     required this.onEarnXp,
+    required this.onProjectEvaluated,
+    required this.onTasksChanged,
+    required this.onGoToMarketplace,
   });
 
   @override
@@ -27,22 +40,22 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
   final TextEditingController _repoController = TextEditingController();
   bool _isAnalyzing = false;
 
-  /// AI değerlendirmesi yapılmış projeler (XP yalnızca ilk teslimde verilir).
-  final Set<String> _evaluatedProjectIds = {};
-
-  bool get _showAiReport => _evaluatedProjectIds.contains(widget.project.id);
+  bool get _showAiReport =>
+      !_isAnalyzing &&
+      widget.project != null &&
+      widget.evaluatedProjectIds.contains(widget.project!.id);
 
   @override
   void initState() {
     super.initState();
-    _repoController.text = _demoRepoFor(widget.project.id);
+    _repoController.text = _demoRepoFor(widget.project?.id);
   }
 
   @override
   void didUpdateWidget(covariant WorkspaceScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.project.id != widget.project.id) {
-      _repoController.text = _demoRepoFor(widget.project.id);
+    if (oldWidget.project?.id != widget.project?.id) {
+      _repoController.text = _demoRepoFor(widget.project?.id);
       _isAnalyzing = false;
     }
   }
@@ -53,8 +66,8 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
     super.dispose();
   }
 
-  String _demoRepoFor(String projectId) =>
-      ProviaMockData.demoRepoUrls[projectId] ?? '';
+  String _demoRepoFor(String? projectId) =>
+      projectId == null ? '' : ProviaMockData.demoRepoUrls[projectId] ?? '';
 
   void _showMessage(String text) {
     ScaffoldMessenger.of(context)
@@ -79,22 +92,20 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         task.status = 'Yapılacak';
       }
     });
+    widget.onTasksChanged();
   }
 
   Future<void> _runSimulatedAiEvaluation() async {
-    if (_repoController.text.trim().isEmpty) return;
-    final projectId = widget.project.id;
-    final firstSubmission = !_evaluatedProjectIds.contains(projectId);
-    setState(() {
-      _isAnalyzing = true;
-      _evaluatedProjectIds.remove(projectId);
-    });
+    final project = widget.project;
+    if (project == null || _repoController.text.trim().isEmpty) return;
+    final projectId = project.id;
+    final firstSubmission = !widget.evaluatedProjectIds.contains(projectId);
+    setState(() => _isAnalyzing = true);
     await Future.delayed(const Duration(seconds: 2));
-    if (!mounted) return;
-    setState(() {
-      _isAnalyzing = false;
-      _evaluatedProjectIds.add(projectId);
-    });
+    // Kullanıcı bu sırada başka projeye geçtiyse sonucu gösterme.
+    if (!mounted || widget.project?.id != projectId) return;
+    setState(() => _isAnalyzing = false);
+    widget.onProjectEvaluated(projectId);
     if (firstSubmission) {
       widget.onEarnXp(150);
       _showMessage('Teslim değerlendirildi! +150 XP kazandın.');
@@ -107,7 +118,11 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final tasks = ProviaMockData.tasksFor(widget.project.id);
+    final project = widget.project;
+    if (project == null) {
+      return _EmptyWorkspace(onGoToMarketplace: widget.onGoToMarketplace);
+    }
+    final tasks = ProviaMockData.tasksFor(project.id);
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -115,18 +130,18 @@ class _WorkspaceScreenState extends State<WorkspaceScreen> {
         if (widget.joinedProjects.length > 1) ...[
           ProjectSwitcher(
             projects: widget.joinedProjects,
-            activeProjectId: widget.project.id,
+            activeProjectId: project.id,
             onSelect: widget.onSelectProject,
           ),
           const SizedBox(height: 16),
         ],
         Text(
-          widget.project.title,
+          project.title,
           style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 2),
         Text(
-          widget.project.company,
+          project.company,
           style: const TextStyle(color: ProviaTheme.primary, fontSize: 12),
         ),
         const SizedBox(height: 8),
@@ -344,6 +359,56 @@ class _ScoreRow extends StatelessWidget {
             color: ProviaTheme.primary,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _EmptyWorkspace extends StatelessWidget {
+  final VoidCallback onGoToMarketplace;
+
+  const _EmptyWorkspace({required this.onGoToMarketplace});
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              LucideIcons.layers,
+              size: 36,
+              color: ProviaTheme.textMuted,
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'Henüz bir projen yok',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Keşfet sekmesinden bir projeye katıl; görevlerin ve GitHub '
+              'teslimin burada görünecek.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: ProviaTheme.textMuted, fontSize: 13),
+            ),
+            const SizedBox(height: 18),
+            ElevatedButton.icon(
+              onPressed: onGoToMarketplace,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ProviaTheme.primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              icon: const Icon(LucideIcons.compass, size: 16),
+              label: const Text('Projeleri Keşfet'),
+            ),
+          ],
+        ),
       ),
     );
   }

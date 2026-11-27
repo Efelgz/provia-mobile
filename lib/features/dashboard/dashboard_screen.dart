@@ -8,7 +8,7 @@ import '../../models/provia_models.dart';
 class DashboardScreen extends StatelessWidget {
   final int userXp;
   final List<ProviaProject> joinedProjects;
-  final String activeProjectId;
+  final String? activeProjectId;
   final ValueChanged<String> onSelectProject;
   final VoidCallback onGoToWorkspace;
   final VoidCallback onGoToMarketplace;
@@ -27,10 +27,12 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final int level = (userXp ~/ 400) + 1;
     final double levelProgress = (userXp % 400) / 400;
-    final activeProject = joinedProjects.firstWhere(
-      (p) => p.id == activeProjectId,
-      orElse: () => joinedProjects.first,
-    );
+    final ProviaProject? activeProject = joinedProjects.isEmpty
+        ? null
+        : joinedProjects.firstWhere(
+            (p) => p.id == activeProjectId,
+            orElse: () => joinedProjects.first,
+          );
     final myRank = ProviaMockData.rankedLeaderboard(
       userXp,
     ).firstWhere(ProviaMockData.isCurrentUser).rank;
@@ -135,7 +137,9 @@ class DashboardScreen extends StatelessWidget {
           style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 8),
-        if (joinedProjects.length > 1) ...[
+        if (activeProject == null)
+          _NoProjectCard(onGoToMarketplace: onGoToMarketplace),
+        if (activeProject != null && joinedProjects.length > 1) ...[
           ProjectSwitcher(
             projects: joinedProjects,
             activeProjectId: activeProject.id,
@@ -143,90 +147,93 @@ class DashboardScreen extends StatelessWidget {
           ),
           const SizedBox(height: 10),
         ],
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: ProviaTheme.primary.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            activeProject.company,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: ProviaTheme.primary,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w600,
+        if (activeProject != null)
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.centerLeft,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 3,
+                            ),
+                            decoration: BoxDecoration(
+                              color: ProviaTheme.primary.withValues(
+                                alpha: 0.15,
+                              ),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              activeProject.company,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: ProviaTheme.primary,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(
-                      LucideIcons.clock,
-                      size: 13,
-                      color: ProviaTheme.warning,
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      activeProject.deadline,
-                      style: const TextStyle(
+                      const SizedBox(width: 8),
+                      const Icon(
+                        LucideIcons.clock,
+                        size: 13,
                         color: ProviaTheme.warning,
-                        fontSize: 12,
                       ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  activeProject.title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  activeProject.description,
-                  style: const TextStyle(
-                    color: ProviaTheme.textMuted,
-                    fontSize: 13,
-                  ),
-                ),
-                const SizedBox(height: 14),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: onGoToWorkspace,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: ProviaTheme.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                      const SizedBox(width: 4),
+                      Text(
+                        activeProject.deadline,
+                        style: const TextStyle(
+                          color: ProviaTheme.warning,
+                          fontSize: 12,
+                        ),
                       ),
-                    ),
-                    icon: const Icon(LucideIcons.arrowRight, size: 16),
-                    label: const Text('Çalışma Alanına Git'),
+                    ],
                   ),
-                ),
-              ],
+                  const SizedBox(height: 10),
+                  Text(
+                    activeProject.title,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    activeProject.description,
+                    style: const TextStyle(
+                      color: ProviaTheme.textMuted,
+                      fontSize: 13,
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: onGoToWorkspace,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: ProviaTheme.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      icon: const Icon(LucideIcons.arrowRight, size: 16),
+                      label: const Text('Çalışma Alanına Git'),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
         const SizedBox(height: 16),
 
         OutlinedButton.icon(
@@ -291,6 +298,52 @@ class _StatCard extends StatelessWidget {
                     ),
                   ),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NoProjectCard extends StatelessWidget {
+  final VoidCallback onGoToMarketplace;
+
+  const _NoProjectCard({required this.onGoToMarketplace});
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Henüz bir projeye katılmadın',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Şirket destekli veya topluluk projelerinden birine katıl, '
+              "takımınla görevleri tamamlayarak ilk XP'ni kazan.",
+              style: TextStyle(color: ProviaTheme.textMuted, fontSize: 13),
+            ),
+            const SizedBox(height: 14),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: onGoToMarketplace,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: ProviaTheme.primary,
+                  foregroundColor: Colors.white,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                ),
+                icon: const Icon(LucideIcons.compass, size: 16),
+                label: const Text('İlk Projeni Seç'),
               ),
             ),
           ],
