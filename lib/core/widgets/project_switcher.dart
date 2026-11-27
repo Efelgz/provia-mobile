@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 import '../../models/provia_models.dart';
+import 'provia_components.dart';
 
 /// Katılınan projeler arasında geçiş yapmak için yatay seçim çubuğu.
 /// Panel ve Alanım ekranları ortak kullanır.
@@ -19,7 +20,7 @@ class ProjectSwitcher extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 36,
+      height: minTapHeight(context, 36, 44),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         itemCount: projects.length,

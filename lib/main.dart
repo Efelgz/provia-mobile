@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'core/theme/app_theme.dart';
 import 'core/data/mock_data.dart';
 import 'core/services/provia_storage.dart';
+import 'core/widgets/provia_components.dart';
 import 'models/provia_models.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/dashboard/dashboard_screen.dart';
@@ -81,6 +82,17 @@ class _ProviaAppState extends State<ProviaApp> {
       title: 'PROVIA',
       debugShowCheckedModeBanner: false,
       theme: ProviaTheme.darkTheme,
+      // Geniş ekranda bildirimler ekran boyunca uzamasın.
+      builder: (context, child) {
+        if (!ProviaBreakpoints.isDesktop(context)) return child!;
+        final theme = Theme.of(context);
+        return Theme(
+          data: theme.copyWith(
+            snackBarTheme: theme.snackBarTheme.copyWith(width: 460),
+          ),
+          child: child!,
+        );
+      },
       home: home,
     );
   }
@@ -237,6 +249,16 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
       );
   }
 
+  void _showSoon(String module) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('$module modülü yakında geliyor (yol haritası).'),
+        ),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     final activeId = _activeProjectId;
@@ -246,6 +268,7 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
         userXp: _userXp,
         joinedProjects: _joinedProjects,
         activeProjectId: activeId,
+        evaluatedProjectIds: _evaluatedProjectIds,
         onSelectProject: _selectProject,
         onGoToWorkspace: () => setState(() => _currentIndex = 2),
         onGoToMarketplace: () => setState(() => _currentIndex = 1),
@@ -269,28 +292,48 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
       ProfileScreen(userXp: _userXp),
     ];
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
+    final body = IndexedStack(index: _currentIndex, children: pages);
+    final notifications = _buildNotifications();
+
+    // Geniş ekran: sol menü + üst başlık + ortalanmış içerik.
+    if (ProviaBreakpoints.isDesktop(context)) {
+      return Scaffold(
+        body: Row(
           children: [
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: ProviaTheme.primary.withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(
-                  color: ProviaTheme.primary.withValues(alpha: 0.4),
-                ),
-              ),
-              child: const Text(
-                'P',
-                style: TextStyle(
-                  color: ProviaTheme.primary,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 14,
-                ),
+            _Sidebar(
+              currentIndex: _currentIndex,
+              onSelect: (i) => setState(() => _currentIndex = i),
+              onSoon: _showSoon,
+              account: widget.account,
+              userXp: _userXp,
+              onReset: _confirmReset,
+              onSignOut: widget.onSignOut,
+            ),
+            const VerticalDivider(width: 1),
+            Expanded(
+              child: Column(
+                children: [
+                  _TopHeader(
+                    title: _desktopTitles[_currentIndex],
+                    userXp: _userXp,
+                    notifications: notifications,
+                  ),
+                  Expanded(child: body),
+                ],
               ),
             ),
+          ],
+        ),
+      );
+    }
+
+    // Mobil: üst bar + alt menü.
+    return Scaffold(
+      appBar: AppBar(
+        titleSpacing: 16,
+        title: Row(
+          children: [
+            const _LogoMark(size: 26),
             const SizedBox(width: 10),
             Flexible(
               child: Text(
@@ -301,38 +344,10 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
           ],
         ),
         actions: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: ProviaTheme.accent.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: ProviaTheme.accent.withValues(alpha: 0.3),
-              ),
-            ),
-            child: Row(
-              children: [
-                const Icon(
-                  LucideIcons.zap,
-                  size: 14,
-                  color: ProviaTheme.accent,
-                ),
-                const SizedBox(width: 4),
-                Text(
-                  '$_userXp XP',
-                  style: const TextStyle(
-                    color: ProviaTheme.accent,
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          _XpPill(xp: _userXp, compact: true),
           PopupMenuButton<String>(
             tooltip: 'Hesap menüsü',
             icon: const Icon(LucideIcons.moreVertical, size: 20),
-            color: ProviaTheme.surfaceDark,
             onSelected: (value) {
               if (value == 'reset') _confirmReset();
               if (value == 'logout') widget.onSignOut();
@@ -351,51 +366,31 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
               const PopupMenuDivider(),
               const PopupMenuItem(
                 value: 'reset',
-                child: Row(
-                  children: [
-                    Icon(LucideIcons.rotateCcw, size: 16),
-                    SizedBox(width: 10),
-                    Flexible(
-                      child: Text(
-                        'İlerlemeyi Sıfırla',
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
+                child: _MenuRow(
+                  icon: LucideIcons.rotateCcw,
+                  label: 'İlerlemeyi Sıfırla',
                 ),
               ),
               const PopupMenuItem(
                 value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(LucideIcons.logOut, size: 16),
-                    SizedBox(width: 10),
-                    Flexible(
-                      child: Text('Çıkış Yap', overflow: TextOverflow.ellipsis),
-                    ),
-                  ],
-                ),
+                child: _MenuRow(icon: LucideIcons.logOut, label: 'Çıkış Yap'),
               ),
             ],
           ),
         ],
       ),
-      body: IndexedStack(index: _currentIndex, children: pages),
-      bottomNavigationBar: Container(
+      body: body,
+      bottomNavigationBar: DecoratedBox(
         decoration: const BoxDecoration(
-          border: Border(
-            top: BorderSide(color: ProviaTheme.borderDark, width: 1),
-          ),
+          border: Border(top: BorderSide(color: ProviaTheme.borderDark)),
         ),
         child: NavigationBar(
-          backgroundColor: ProviaTheme.surfaceDark,
-          indicatorColor: ProviaTheme.primary.withValues(alpha: 0.2),
           selectedIndex: _currentIndex,
           onDestinationSelected: (index) =>
               setState(() => _currentIndex = index),
           destinations: const [
             NavigationDestination(
-              icon: Icon(LucideIcons.layoutDashboard),
+              icon: Icon(LucideIcons.layoutGrid),
               label: 'Panel',
             ),
             NavigationDestination(
@@ -403,7 +398,7 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
               label: 'Keşfet',
             ),
             NavigationDestination(
-              icon: Icon(LucideIcons.layers),
+              icon: Icon(LucideIcons.terminalSquare),
               label: 'Alanım',
             ),
             NavigationDestination(
@@ -411,10 +406,498 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
               label: 'Sıralama',
             ),
             NavigationDestination(
-              icon: Icon(LucideIcons.user),
+              icon: Icon(LucideIcons.userCircle),
               label: 'Profil',
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  /// Bildirimler: açık görevler ve sıralama durumu (demo verisinden).
+  List<String> _buildNotifications() {
+    final items = <String>[];
+    for (final project in _joinedProjects) {
+      final open = ProviaMockData.tasksFor(
+        project.id,
+      ).where((t) => t.assignee == 'Sen' && t.status != 'Tamamlandı').length;
+      if (open > 0) {
+        items.add('${project.title}: $open açık görevin var.');
+      }
+    }
+    final rank = ProviaMockData.rankedLeaderboard(
+      _userXp,
+    ).firstWhere(ProviaMockData.isCurrentUser).rank;
+    items.add('Aylık sıralamada #$rank sıradasın.');
+    return items;
+  }
+}
+
+const _desktopTitles = [
+  'Genel Bakış',
+  'Projeleri Keşfet',
+  'Proje Çalışma Alanı',
+  'Liderlik Tablosu',
+  'Profil & Portfolyo',
+];
+
+class _NavEntry {
+  /// Sayfa sırası; null ise modül henüz hazır değil.
+  final int? index;
+  final IconData icon;
+  final String label;
+
+  const _NavEntry(this.index, this.icon, this.label);
+}
+
+const _studentEntries = [
+  _NavEntry(0, LucideIcons.layoutGrid, 'Genel Bakış'),
+  _NavEntry(1, LucideIcons.compass, 'Projeleri Keşfet'),
+  _NavEntry(2, LucideIcons.terminalSquare, 'Proje Çalışma Alanı'),
+  _NavEntry(null, LucideIcons.users, 'Takımlar'),
+  _NavEntry(3, LucideIcons.trophy, 'Liderlik Tablosu'),
+  _NavEntry(null, LucideIcons.calendarDays, 'Etkinlikler'),
+  _NavEntry(4, LucideIcons.userCircle, 'Profil & Portfolyo'),
+];
+
+class _LogoMark extends StatelessWidget {
+  final double size;
+
+  const _LogoMark({this.size = 28});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        color: ProviaTheme.primary,
+        borderRadius: BorderRadius.circular(size * 0.26),
+      ),
+      child: Text(
+        'P',
+        style: TextStyle(
+          color: ProviaTheme.onPrimary,
+          fontWeight: FontWeight.w800,
+          fontSize: size * 0.52,
+        ),
+      ),
+    );
+  }
+}
+
+/// "1450 XP | Sv. 4" hapı.
+class _XpPill extends StatelessWidget {
+  final int xp;
+  final bool compact;
+
+  const _XpPill({required this.xp, this.compact = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final level = (xp ~/ 400) + 1;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: ProviaTheme.xp.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: ProviaTheme.xp.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(LucideIcons.zap, size: 13, color: ProviaTheme.xp),
+          const SizedBox(width: 6),
+          Text(
+            compact ? '$xp XP' : '$xp XP  |  Sv. $level',
+            style: ProviaTheme.mono(size: 12, color: ProviaTheme.xp),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _MenuRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+
+  const _MenuRow({required this.icon, required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 16),
+        const SizedBox(width: 10),
+        Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
+      ],
+    );
+  }
+}
+
+/// Masaüstü üst başlığı: sayfa adı + XP hapı + bildirimler.
+class _TopHeader extends StatelessWidget {
+  final String title;
+  final int userXp;
+  final List<String> notifications;
+
+  const _TopHeader({
+    required this.title,
+    required this.userXp,
+    required this.notifications,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 64,
+      padding: const EdgeInsets.symmetric(horizontal: 28),
+      decoration: const BoxDecoration(
+        color: ProviaTheme.bgDark,
+        border: Border(bottom: BorderSide(color: ProviaTheme.borderDark)),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              overflow: TextOverflow.ellipsis,
+              style: ProviaTheme.heading(size: 17),
+            ),
+          ),
+          _XpPill(xp: userXp),
+          const SizedBox(width: 10),
+          PopupMenuButton<int>(
+            tooltip: 'Bildirimler',
+            offset: const Offset(0, 44),
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                enabled: false,
+                height: 36,
+                child: Text(
+                  'BİLDİRİMLER',
+                  style: TextStyle(
+                    color: ProviaTheme.textSubtle,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 1.1,
+                  ),
+                ),
+              ),
+              for (final n in notifications)
+                PopupMenuItem(
+                  enabled: false,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Padding(
+                        padding: EdgeInsets.only(top: 5),
+                        child: Icon(
+                          Icons.circle,
+                          size: 6,
+                          color: ProviaTheme.primary,
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          n,
+                          style: const TextStyle(
+                            color: ProviaTheme.textPrimary,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+            child: Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: ProviaTheme.borderDark),
+              ),
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  const Icon(
+                    LucideIcons.bell,
+                    size: 16,
+                    color: ProviaTheme.textMuted,
+                  ),
+                  if (notifications.isNotEmpty)
+                    Positioned(
+                      top: 8,
+                      right: 9,
+                      child: Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: ProviaTheme.primary,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Masaüstü sol menüsü (260px).
+class _Sidebar extends StatelessWidget {
+  final int currentIndex;
+  final ValueChanged<int> onSelect;
+  final ValueChanged<String> onSoon;
+  final ProviaAccount account;
+  final int userXp;
+  final VoidCallback onReset;
+  final VoidCallback onSignOut;
+
+  const _Sidebar({
+    required this.currentIndex,
+    required this.onSelect,
+    required this.onSoon,
+    required this.account,
+    required this.userXp,
+    required this.onReset,
+    required this.onSignOut,
+  });
+
+  static const _sectionStyle = TextStyle(
+    color: ProviaTheme.textSubtle,
+    fontSize: 11,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 1.2,
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final level = (userXp ~/ 400) + 1;
+    final school = account.university.split('•').first.trim();
+
+    return Container(
+      width: 260,
+      color: ProviaTheme.surfaceDark,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            height: 64,
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            decoration: const BoxDecoration(
+              border: Border(bottom: BorderSide(color: ProviaTheme.borderDark)),
+            ),
+            child: Row(
+              children: [
+                const _LogoMark(size: 30),
+                const SizedBox(width: 10),
+                Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'PROVIA',
+                      style: ProviaTheme.heading(
+                        size: 15,
+                        weight: FontWeight.w800,
+                      ),
+                    ),
+                    Text(
+                      'MVP v1.0',
+                      style: ProviaTheme.mono(
+                        size: 10,
+                        weight: FontWeight.w500,
+                        color: ProviaTheme.textSubtle,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(10, 20, 10, 12),
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(10, 0, 10, 10),
+                  child: Text('ÖĞRENCİ PLATFORMU', style: _sectionStyle),
+                ),
+                for (final entry in _studentEntries)
+                  _SidebarItem(
+                    icon: entry.icon,
+                    label: entry.label,
+                    selected: entry.index == currentIndex,
+                    trailing: entry.index == null
+                        ? const StatusBadge(
+                            label: 'Yakında',
+                            color: ProviaTheme.textSubtle,
+                          )
+                        : null,
+                    muted: entry.index == null,
+                    onTap: () => entry.index == null
+                        ? onSoon(entry.label)
+                        : onSelect(entry.index!),
+                  ),
+                const SizedBox(height: 14),
+                const Divider(),
+                const SizedBox(height: 14),
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(10, 0, 10, 10),
+                  child: Text('GELECEK MODÜLÜ', style: _sectionStyle),
+                ),
+                _SidebarItem(
+                  icon: LucideIcons.building2,
+                  label: 'Şirket Paneli',
+                  selected: false,
+                  muted: true,
+                  trailing: StatusBadge(
+                    label: 'Önizleme',
+                    color: ProviaTheme.primary,
+                    mono: true,
+                  ),
+                  onTap: () => onSoon('Şirket Paneli'),
+                ),
+              ],
+            ),
+          ),
+          const Divider(),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(10, 8, 10, 4),
+            child: TextButton.icon(
+              onPressed: onReset,
+              style: TextButton.styleFrom(
+                foregroundColor: ProviaTheme.textSubtle,
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                textStyle: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              icon: const Icon(LucideIcons.rotateCcw, size: 14),
+              label: const Text('Demo Verilerini Sıfırla'),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 6, 8, 14),
+            child: Row(
+              children: [
+                ProviaAvatar(name: account.name, size: 34),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        account.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        '$school • Sv. $level',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          color: ProviaTheme.textSubtle,
+                          fontSize: 11,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                IconButton(
+                  tooltip: 'Çıkış Yap',
+                  onPressed: onSignOut,
+                  icon: const Icon(
+                    LucideIcons.logOut,
+                    size: 17,
+                    color: ProviaTheme.textMuted,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SidebarItem extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final bool muted;
+  final Widget? trailing;
+  final VoidCallback onTap;
+
+  const _SidebarItem({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.muted = false,
+    this.trailing,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = selected
+        ? ProviaTheme.primary
+        : (muted ? ProviaTheme.textSubtle : ProviaTheme.textMuted);
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 2),
+      child: Material(
+        color: selected
+            ? ProviaTheme.primary.withValues(alpha: 0.1)
+            : Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(
+            color: selected ? ProviaTheme.borderHighlight : Colors.transparent,
+          ),
+        ),
+        child: InkWell(
+          borderRadius: BorderRadius.circular(8),
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+            child: Row(
+              children: [
+                Icon(icon, size: 17, color: color),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                      color: selected ? ProviaTheme.primary : color,
+                    ),
+                  ),
+                ),
+                ?trailing,
+              ],
+            ),
+          ),
         ),
       ),
     );
