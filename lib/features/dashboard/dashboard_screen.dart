@@ -2,15 +2,23 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/data/mock_data.dart';
+import '../../core/widgets/project_switcher.dart';
+import '../../models/provia_models.dart';
 
 class DashboardScreen extends StatelessWidget {
   final int userXp;
+  final List<ProviaProject> joinedProjects;
+  final String activeProjectId;
+  final ValueChanged<String> onSelectProject;
   final VoidCallback onGoToWorkspace;
   final VoidCallback onGoToMarketplace;
 
   const DashboardScreen({
     super.key,
     required this.userXp,
+    required this.joinedProjects,
+    required this.activeProjectId,
+    required this.onSelectProject,
     required this.onGoToWorkspace,
     required this.onGoToMarketplace,
   });
@@ -19,14 +27,20 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final int level = (userXp ~/ 400) + 1;
     final double levelProgress = (userXp % 400) / 400;
-    final activeProject = ProviaMockData.projects.first;
+    final activeProject = joinedProjects.firstWhere(
+      (p) => p.id == activeProjectId,
+      orElse: () => joinedProjects.first,
+    );
+    final myRank = ProviaMockData.rankedLeaderboard(
+      userXp,
+    ).firstWhere(ProviaMockData.isCurrentUser).rank;
 
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        const Text(
-          'Hoş geldin 👋',
-          style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
+        Text(
+          'Hoş geldin, ${ProviaMockData.currentUserName.split(' ').first} 👋',
+          style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 4),
         const Text(
@@ -90,22 +104,22 @@ class DashboardScreen extends StatelessWidget {
         const SizedBox(height: 12),
 
         // Hızlı İstatistikler
-        const Row(
+        Row(
           children: [
             Expanded(
               child: _StatCard(
-                icon: LucideIcons.code2,
-                label: 'Tamamlanan',
-                value: '3 Proje',
+                icon: LucideIcons.layers,
+                label: 'Aktif Proje',
+                value: '${joinedProjects.length} Proje',
                 color: ProviaTheme.primary,
               ),
             ),
-            SizedBox(width: 10),
+            const SizedBox(width: 10),
             Expanded(
               child: _StatCard(
                 icon: LucideIcons.flame,
                 label: 'Aylık Sıra',
-                value: '#4',
+                value: '#$myRank',
                 color: ProviaTheme.warning,
               ),
             ),
@@ -114,11 +128,21 @@ class DashboardScreen extends StatelessWidget {
         const SizedBox(height: 20),
 
         // Aktif Proje
-        const Text(
-          'Aktif Projen',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+        Text(
+          joinedProjects.length > 1
+              ? 'Projelerin (${joinedProjects.length})'
+              : 'Aktif Projen',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 8),
+        if (joinedProjects.length > 1) ...[
+          ProjectSwitcher(
+            projects: joinedProjects,
+            activeProjectId: activeProject.id,
+            onSelect: onSelectProject,
+          ),
+          const SizedBox(height: 10),
+        ],
         Card(
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -127,29 +151,31 @@ class DashboardScreen extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    Flexible(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 3,
-                        ),
-                        decoration: BoxDecoration(
-                          color: ProviaTheme.primary.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6),
-                        ),
-                        child: Text(
-                          activeProject.company,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            color: ProviaTheme.primary,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
+                    Expanded(
+                      child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
+                          decoration: BoxDecoration(
+                            color: ProviaTheme.primary.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            activeProject.company,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: ProviaTheme.primary,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
                     ),
                     const SizedBox(width: 8),
-                    const Spacer(),
                     const Icon(
                       LucideIcons.clock,
                       size: 13,

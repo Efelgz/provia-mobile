@@ -31,6 +31,15 @@ class ProviaTheme {
         side: const BorderSide(color: borderDark, width: 1),
       ),
     ),
+    snackBarTheme: SnackBarThemeData(
+      backgroundColor: surfaceDark,
+      contentTextStyle: const TextStyle(color: textPrimary, fontSize: 13),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(10),
+        side: const BorderSide(color: borderDark),
+      ),
+    ),
     appBarTheme: const AppBarTheme(
       backgroundColor: bgDark,
       elevation: 0,

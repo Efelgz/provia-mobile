@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'core/theme/app_theme.dart';
+import 'core/data/mock_data.dart';
+import 'models/provia_models.dart';
 import 'features/dashboard/dashboard_screen.dart';
 import 'features/workspace/workspace_screen.dart';
 // Kişi 2'nin ekranları. main.dart'a dokunmadan yalnızca bu dosyaların
@@ -38,6 +40,13 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
   int _currentIndex = 0;
   int _userXp = 1450;
 
+  // Kullanıcının katıldığı projeler ve Panel/Alanım'da açık olan proje.
+  final List<String> _joinedProjectIds = ['p1'];
+  String _activeProjectId = 'p1';
+
+  List<ProviaProject> get _joinedProjects =>
+      _joinedProjectIds.map(ProviaMockData.projectById).toList();
+
   final List<String> _titles = [
     'PROVIA',
     'Projeleri Keşfet',
@@ -50,16 +59,42 @@ class _ProviaMainShellState extends State<ProviaMainShell> {
     setState(() => _userXp += amount);
   }
 
+  void _selectProject(String projectId) {
+    setState(() => _activeProjectId = projectId);
+  }
+
+  /// Yeni katılınan proje listeye eklenir ve otomatik olarak aktif olur.
+  void _joinProject(ProviaProject project) {
+    if (_joinedProjectIds.contains(project.id)) return;
+    setState(() {
+      _joinedProjectIds.add(project.id);
+      _activeProjectId = project.id;
+      _userXp += 50;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<Widget> pages = [
       DashboardScreen(
         userXp: _userXp,
+        joinedProjects: _joinedProjects,
+        activeProjectId: _activeProjectId,
+        onSelectProject: _selectProject,
         onGoToWorkspace: () => setState(() => _currentIndex = 2),
         onGoToMarketplace: () => setState(() => _currentIndex = 1),
       ),
-      MarketplaceScreen(onJoinProject: () => _addXp(50)),
-      WorkspaceScreen(onEarnXp: _addXp),
+      MarketplaceScreen(
+        joinedProjectIds: _joinedProjectIds.toSet(),
+        onJoinProject: _joinProject,
+        onGoToDashboard: () => setState(() => _currentIndex = 0),
+      ),
+      WorkspaceScreen(
+        project: ProviaMockData.projectById(_activeProjectId),
+        joinedProjects: _joinedProjects,
+        onSelectProject: _selectProject,
+        onEarnXp: _addXp,
+      ),
       LeaderboardScreen(userXp: _userXp),
       ProfileScreen(userXp: _userXp),
     ];
